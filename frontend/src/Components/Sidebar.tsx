@@ -129,7 +129,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onLogout, onNavigate }) =
 
           <button
             onClick={onLogout}
-            className="flex items-center gap-3 text-white/90 hover:text-white font-black text-sm px-4 py-3 rounded-2xl transition-all w-full text-left hover:bg-white/15 active:scale-[0.98]"
+            className="flex items-center gap-3 text-white/50 hover:text-white font-black text-sm px-4 py-3 rounded-2xl transition-all w-full text-left hover:bg-white/15 active:scale-[0.98]"
           >
             <LogOut size={19} />
             <span>Cerrar sesión</span>
@@ -155,12 +155,12 @@ const NavItem = ({
     onClick={onClick}
     className={`group relative w-full flex items-center gap-3 px-4 py-3 rounded-[22px] transition-all font-black text-sm text-left active:scale-[0.98] ${
       active
-        ? 'bg-white text-[#2f8caf] shadow-xl shadow-slate-900/10'
+        ? 'bg-white/75 text-[#2f8caf] '
         : 'text-white/75 hover:text-white hover:bg-white/15'
     }`}
   >
     {active && (
-      <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-8 rounded-r-full bg-[#ffcc6f]"></span>
+      <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-8 rounded-r-full bg-[#2f8c]"></span>
     )}
 
     <div
