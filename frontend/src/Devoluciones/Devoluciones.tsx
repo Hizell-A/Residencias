@@ -13,9 +13,9 @@ import {
   X,
   Download,
   Printer,
-  FileText
+  FileText,
+  History
 } from 'lucide-react';
-
 interface DevolucionesProps {
   onLogout: () => void;
   onNavigate: (view: string) => void;
@@ -39,6 +39,7 @@ const Devoluciones: React.FC<DevolucionesProps> = ({ onLogout, onNavigate }) => 
 
   const [activeLoans, setActiveLoans] = useState<any[]>([]);
   const [historialDevoluciones, setHistorialDevoluciones] = useState<any[]>([]);
+  const [isHistorialModalOpen, setIsHistorialModalOpen] = useState(false);
 
 
 
@@ -255,14 +256,28 @@ React.useEffect(() => {
         
 
         <div className="p-10 space-y-8">
-          <div>
-            <h2 className="text-2xl font-extrabold text-slate-900">
-              Devoluciones de Aparatos
-            </h2>
-            <p className="text-slate-500 font-medium mt-1">
-              Registrar devolución de aparatos prestados
-            </p>
-          </div>
+          <div className="flex items-center justify-between">
+  <div>
+    <h2 className="text-2xl font-extrabold text-slate-900">
+      Devoluciones de Aparatos
+    </h2>
+    <p className="text-slate-500 font-medium mt-1">
+      Registrar devolución de aparatos prestados
+    </p>
+  </div>
+
+  <button
+    onClick={() => setIsHistorialModalOpen(true)}
+    className="flex items-center gap-2 bg-white hover:bg-slate-50 text-[#5ba4c7] px-5 py-3 rounded-2xl font-black text-sm border border-[#5ba4c7]/20 shadow-sm transition-all active:scale-[0.98]"
+  >
+    <History size={20} />
+    <span>Historial de Devoluciones</span>
+
+    <span className="ml-1 px-2 py-0.5 rounded-full bg-[#5ba4c7]/10 text-[#5ba4c7] text-[10px] font-black">
+      {historialDevoluciones.length}
+    </span>
+  </button>
+</div>
 
           <div className="grid grid-cols-3 gap-8 items-start">
             <div className="col-span-1 bg-sky-50/50 p-6 rounded-[40px] border border-sky-100/50 shadow-sm space-y-6">
@@ -609,74 +624,159 @@ React.useEffect(() => {
             )}
           </div>
 
-          {/* Historial de Devoluciones */}
-          <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-sm mt-8">
-            <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
-              <h3 className="text-xl font-black text-slate-900">Historial de Devoluciones</h3>
-              <div className="flex items-center gap-4">
-                <div className="relative">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                  <input
-                    type="text"
-                    placeholder="Buscar registro..."
-                    value={busquedaHistorial}
-                    onChange={(e) => setBusquedaHistorial(e.target.value)}
-                    className="pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-[#5ba4c7]/10 focus:border-[#5ba4c7] transition-all text-sm font-medium w-64"
-                  />
-                </div>
-                <button
-                  onClick={handleExportCSV}
-                  className="flex items-center gap-2 bg-[#5ba4c7] hover:bg-[#4a8ba9] text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-sm transition-all"
-                >
-                  <Download size={18} />
-                  <span>Exportar CSV</span>
-                </button>
-              </div>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-slate-100 text-sm text-slate-500">
-                    <th className="pb-4 font-bold">ID Devolución</th>
-                    <th className="pb-4 font-bold">Préstamo Ref.</th>
-                    <th className="pb-4 font-bold">Beneficiario</th>
-                    <th className="pb-4 font-bold">Artículo</th>
-                    <th className="pb-4 font-bold">Fecha</th>
-                    <th className="pb-4 font-bold">Estado Físico</th>
-                    <th className="pb-4 font-bold">Multa/Cargo</th>
-                  </tr>
-                </thead>
-                <tbody className="text-sm">
-                  {historialFiltrado.map((dev, index) => (
-                    <tr key={index} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/50 transition-colors">
-                      <td className="py-4 font-bold text-slate-800">{dev.id_devolucion}</td>
-                      <td className="py-4 text-slate-600">{dev.id_prestamo}</td>
-                      <td className="py-4 font-medium text-slate-800">{dev.nombre_beneficiario}</td>
-                      <td className="py-4 text-slate-600">{dev.nombre_articulo}</td>
-                      <td className="py-4 text-slate-600">{new Date(dev.fecha_devolucion).toLocaleDateString('es-MX')}</td>
-                      <td className="py-4">
-                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                          dev.estado_fisico_recibido === 'Bueno' ? 'bg-emerald-100 text-emerald-700' :
-                          dev.estado_fisico_recibido === 'Regular' ? 'bg-amber-100 text-amber-700' :
-                          'bg-rose-100 text-rose-700'
-                        }`}>
-                          {dev.estado_fisico_recibido}
-                        </span>
-                      </td>
-                      <td className="py-4 font-medium text-slate-700">${parseFloat(dev.multa_o_cargo || '0').toFixed(2)}</td>
-                    </tr>
-                  ))}
-                  {historialFiltrado.length === 0 && (
-                    <tr>
-                      <td colSpan={7} className="py-8 text-center text-slate-500 font-medium">No se encontraron devoluciones</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
+
+          
         </div>
       </main>
+      {isHistorialModalOpen && (
+  <div className="fixed inset-0 z-[60] flex items-center justify-center p-6">
+    <div
+      className="absolute inset-0 bg-slate-900/45 backdrop-blur-sm"
+      onClick={() => setIsHistorialModalOpen(false)}
+    ></div>
+
+    <div className="relative bg-white w-full max-w-6xl max-h-[85vh] rounded-[36px] shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200">
+      <div className="shrink-0 p-8 border-b border-slate-100 bg-[#f8fdfe] flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+        <div className="flex items-center gap-4">
+          <div className="w-14 h-14 rounded-2xl bg-[#5ba4c7]/10 text-[#5ba4c7] flex items-center justify-center">
+            <History size={28} />
+          </div>
+
+          <div>
+            <h3 className="text-2xl font-black text-slate-900">
+              Historial de Devoluciones
+            </h3>
+            <p className="text-sm text-slate-500 font-medium mt-1">
+              Consulta, filtra y exporta las devoluciones registradas
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <Search
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+              size={18}
+            />
+
+            <input
+              type="text"
+              placeholder="Buscar registro..."
+              value={busquedaHistorial}
+              onChange={(e) => setBusquedaHistorial(e.target.value)}
+              className="pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-[#5ba4c7]/10 focus:border-[#5ba4c7] transition-all text-sm font-medium w-72"
+            />
+          </div>
+
+          <button
+            onClick={handleExportCSV}
+            className="flex items-center gap-2 bg-[#5ba4c7] hover:bg-[#4a8ba9] text-white px-5 py-3 rounded-2xl font-black text-sm shadow-lg shadow-[#5ba4c7]/20 transition-all active:scale-[0.98]"
+          >
+            <Download size={18} />
+            <span>Exportar CSV</span>
+          </button>
+
+          <button
+            onClick={() => setIsHistorialModalOpen(false)}
+            className="w-11 h-11 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700 flex items-center justify-center transition-all"
+            title="Cerrar"
+          >
+            <X size={22} />
+          </button>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-8">
+        <div className="overflow-x-auto rounded-[28px] border border-slate-100">
+          <table className="w-full text-left border-collapse">
+            <thead className="bg-slate-50 sticky top-0 z-10">
+              <tr className="border-b border-slate-100 text-sm text-slate-500">
+                <th className="px-6 py-4 font-black">ID Devolución</th>
+                <th className="px-6 py-4 font-black">Préstamo Ref.</th>
+                <th className="px-6 py-4 font-black">Beneficiario</th>
+                <th className="px-6 py-4 font-black">Artículo</th>
+                <th className="px-6 py-4 font-black">Fecha</th>
+                <th className="px-6 py-4 font-black">Estado Físico</th>
+                <th className="px-6 py-4 font-black">Multa/Cargo</th>
+              </tr>
+            </thead>
+
+            <tbody className="text-sm divide-y divide-slate-100">
+              {historialFiltrado.map((dev, index) => (
+                <tr
+                  key={index}
+                  className="hover:bg-[#f8fdfe] transition-colors"
+                >
+                  <td className="px-6 py-4 font-black text-slate-800">
+                    {dev.id_devolucion}
+                  </td>
+
+                  <td className="px-6 py-4 text-slate-600 font-medium">
+                    {dev.id_prestamo}
+                  </td>
+
+                  <td className="px-6 py-4 font-bold text-slate-800">
+                    {dev.nombre_beneficiario}
+                  </td>
+
+                  <td className="px-6 py-4 text-slate-600 font-medium">
+                    {dev.nombre_articulo}
+                  </td>
+
+                  <td className="px-6 py-4 text-slate-600 font-medium">
+                    {new Date(dev.fecha_devolucion).toLocaleDateString('es-MX')}
+                  </td>
+
+                  <td className="px-6 py-4">
+                    <span
+                      className={`px-3 py-1 rounded-full text-xs font-black ${
+                        dev.estado_fisico_recibido === 'Bueno'
+                          ? 'bg-emerald-100 text-emerald-700'
+                          : dev.estado_fisico_recibido === 'Regular'
+                          ? 'bg-amber-100 text-amber-700'
+                          : 'bg-rose-100 text-rose-700'
+                      }`}
+                    >
+                      {dev.estado_fisico_recibido}
+                    </span>
+                  </td>
+
+                  <td className="px-6 py-4 font-bold text-slate-700">
+                    ${parseFloat(dev.multa_o_cargo || '0').toFixed(2)}
+                  </td>
+                </tr>
+              ))}
+
+              {historialFiltrado.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={7}
+                    className="px-6 py-16 text-center text-slate-500 font-bold"
+                  >
+                    No se encontraron devoluciones
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="shrink-0 px-8 py-5 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+        <p className="text-sm text-slate-500 font-bold">
+          {historialFiltrado.length} registros encontrados
+        </p>
+
+        <button
+          onClick={() => setIsHistorialModalOpen(false)}
+          className="px-6 py-3 bg-white hover:bg-slate-100 text-slate-700 rounded-2xl font-black text-sm border border-slate-200 transition-all"
+        >
+          Cerrar
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 
       {ticketModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
