@@ -333,15 +333,7 @@ const Devoluciones: React.FC<DevolucionesProps> = ({ onLogout, onNavigate }) => 
       </aside>
 
       <main className="flex-1 overflow-y-auto">
-        <header className="h-20 bg-white border-b border-slate-100 flex items-center justify-between px-10">
-          <h1 className="text-lg font-bold text-slate-800 tracking-tight">
-            Sistema de Control de Inventarios
-          </h1>
-          <button className="relative p-2 text-slate-400 hover:text-slate-600 transition-colors">
-            <Bell size={22} />
-            <span className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full border-2 border-white"></span>
-          </button>
-        </header>
+        
 
         <div className="p-10 space-y-8">
           <div>
