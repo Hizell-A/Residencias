@@ -9,7 +9,6 @@ import {
   Loader2,
   CheckCircle,
   XCircle,
-  AlertCircle,
   Download,
   History,
   ImagePlus
@@ -27,11 +26,18 @@ export interface Articulo {
   descripcion: string;
   categoria: string;
   cantidad_total: number;
-  cantidad_disponible: number;
   estado_fisico: string;
   fecha_ingreso?: string;
   imagen_url?: string;
 }
+
+interface ArticuloTabla extends Articulo {
+  id_fila: string;
+  codigo_unidad: string;
+  numero_unidad: number;
+  estado_unidad: string;
+}
+
 const DEFAULT_IMAGE = '/src/assets/logo.png';
 const Inventario: React.FC<InventarioProps> = ({ onLogout, onNavigate }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -48,8 +54,7 @@ const Inventario: React.FC<InventarioProps> = ({ onLogout, onNavigate }) => {
     setTimeout(() => setToast(null), 3000);
   };
 
-  const [selectedItem, setSelectedItem] = useState<Articulo | null>(null);
-  const handleCloseModal = () => {
+const [selectedItem, setSelectedItem] = useState<ArticuloTabla | null>(null);  const handleCloseModal = () => {
     setIsModalOpen(false);
     setEditingId(null);
     setFormData({
@@ -58,7 +63,6 @@ const Inventario: React.FC<InventarioProps> = ({ onLogout, onNavigate }) => {
   descripcion: '',
   categoria: 'Silla de ruedas',
   cantidad_total: 1,
-  cantidad_disponible: 1,
   estado_fisico: 'Disponible',
   imagen_url: ''
 });
@@ -72,7 +76,6 @@ const Inventario: React.FC<InventarioProps> = ({ onLogout, onNavigate }) => {
   descripcion: '',
   categoria: 'Silla de ruedas',
   cantidad_total: 1,
-  cantidad_disponible: 1,
   estado_fisico: 'Disponible',
   imagen_url: ''
 });
@@ -87,7 +90,6 @@ const Inventario: React.FC<InventarioProps> = ({ onLogout, onNavigate }) => {
     descripcion: item.descripcion,
     categoria: item.categoria,
     cantidad_total: item.cantidad_total,
-    cantidad_disponible: item.cantidad_disponible,
     estado_fisico: item.estado_fisico,
     imagen_url: item.imagen_url || ''
   });
@@ -103,7 +105,6 @@ const [formData, setFormData] = useState<Articulo>({
   descripcion: '',
   categoria: 'Silla de ruedas',
   cantidad_total: 1,
-  cantidad_disponible: 1,
   estado_fisico: 'Disponible',
   imagen_url: ''
 });
@@ -135,10 +136,10 @@ useEffect(() => {
       showToast('El nombre no puede estar vacío', 'error');
       return;
     }
-    if (formData.cantidad_total < 0 || formData.cantidad_disponible < 0) {
-      showToast('Las cantidades no pueden ser negativas', 'error');
-      return;
-    }
+    if (formData.cantidad_total < 1) {
+  showToast('La cantidad debe ser mínimo 1', 'error');
+  return;
+}
 
     setActionLoading(true);
     try {
@@ -150,7 +151,10 @@ useEffect(() => {
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({
+  ...formData,
+  cantidad_disponible: formData.cantidad_total
+})
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Error al guardar');
@@ -193,30 +197,30 @@ useEffect(() => {
   };
 
   const handleExportCSV = () => {
-    const headers = ['Código', 'Nombre', 'Categoría', 'Estado', 'Stock Disp', 'Stock Total', 'Descripción'];
-    const rows = filteredData.map(item => [
-      `"${item.codigo_articulo}"`,
-      `"${item.nombre}"`,
-      `"${item.categoria}"`,
-      `"${item.estado_fisico}"`,
-      item.cantidad_disponible,
-      item.cantidad_total,
-      `"${(item.descripcion || '').replace(/"/g, '""')}"`
-    ]);
+  const headers = ['Código', 'Nombre', 'Categoría', 'Estado', 'Descripción'];
+
+  const rows = tablaInventarioSeparada.map(item => [
+    `"${item.codigo_unidad}"`,
+    `"${item.nombre}"`,
+    `"${item.categoria}"`,
+    `"${item.estado_unidad}"`,
+    `"${(item.descripcion || '').replace(/"/g, '""')}"`
+  ]);
+  
+  const csvContent = "data:text/csv;charset=utf-8,\uFEFF" 
+    + headers.join(",") + "\n" 
+    + rows.map(e => e.join(",")).join("\n");
     
-    const csvContent = "data:text/csv;charset=utf-8,\uFEFF" 
-      + headers.join(",") + "\n" 
-      + rows.map(e => e.join(",")).join("\n");
-      
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "reporte_inventario.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    showToast('Inventario exportado correctamente', 'success');
-  };
+  const encodedUri = encodeURI(csvContent);
+  const link = document.createElement("a");
+  link.setAttribute("href", encodedUri);
+  link.setAttribute("download", "reporte_inventario.csv");
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
+  showToast('Inventario exportado correctamente', 'success');
+};
 
   const filteredData = useMemo(() => {
     return inventoryData.filter(item => {
@@ -230,7 +234,31 @@ useEffect(() => {
     });
   }, [inventoryData, searchTerm, categoryFilter, statusFilter]);
 
-  const handleOpenDetails = (item: Articulo) => {
+  const tablaInventarioSeparada = useMemo<ArticuloTabla[]>(() => {
+  return filteredData.flatMap((item) => {
+    const total = Math.max(Number(item.cantidad_total) || 1, 1);
+    const disponibles = Number((item as any).cantidad_disponible ?? total);
+
+    return Array.from({ length: total }, (_, index) => {
+      const numeroUnidad = index + 1;
+
+      return {
+        ...item,
+        id_fila: `${item.id_articulo}-${numeroUnidad}`,
+        codigo_unidad: `${item.codigo_articulo}-${String(numeroUnidad).padStart(2, '0')}`,
+        numero_unidad: numeroUnidad,
+        estado_unidad:
+          item.estado_fisico === 'Mantenimiento'
+            ? 'Mantenimiento'
+            : index < disponibles
+            ? 'Disponible'
+            : 'Prestado'
+      };
+    });
+  });
+}, [filteredData]);
+
+const handleOpenDetails = (item: ArticuloTabla) => {
   setSelectedItem(item);
 };
 
@@ -346,24 +374,23 @@ const handleRemoveImage = () => {
               <table className="w-full text-left border-collapse">
                 <thead className="sticky top-0 z-10 bg-slate-50/90 backdrop-blur-sm">
                   <tr className="border-b border-slate-100">
-                    <th className="px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider">Código</th>
-                    <th className="px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider">Nombre</th>
-                    <th className="px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider">Categoría</th>
-                    <th className="px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider text-center">Estado</th>
-                    <th className="px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider text-center">Stock Disp.</th>
-                    <th className="px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider">Descripción</th>
-                    <th className="px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider text-center">Acciones</th>
+                   <th className="px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider">Código</th>
+                      <th className="px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider">Nombre</th>
+                      <th className="px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider">Categoría</th>
+                      <th className="px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider text-center">Estado</th>
+                      <th className="px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider">Descripción</th>
+                      <th className="px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider text-center">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {loading ? (
                      <tr>
-                        <td colSpan={7} className="px-8 py-10 text-center text-slate-500 font-medium">Cargando inventario...</td>
+                        <td colSpan={6} className="px-8 py-10 text-center text-slate-500 font-medium">Cargando inventario...</td>
                      </tr>
                   ) : filteredData.length > 0 ? (
-                    filteredData.map((item, index) => (
+                    tablaInventarioSeparada.map((item) => (
                       <tr 
-  key={item.id_articulo || index}
+  key={item.id_fila}
   onClick={() => handleOpenDetails(item)}
   tabIndex={0}
   onKeyDown={(e) => {
@@ -374,27 +401,17 @@ const handleRemoveImage = () => {
   }}
   className="cursor-pointer hover:bg-[#e9f8fb] hover:shadow-[inset_5px_0_0_#5ba4c7] focus:bg-[#e9f8fb] focus:outline-none transition-all group"
 >
-                        <td className="px-8 py-5 text-sm text-slate-500 font-medium">{item.codigo_articulo}</td>
+                        <td className="px-8 py-5 text-sm text-slate-500 font-medium">{item.codigo_unidad}</td>
                         <td className="px-8 py-5 font-bold text-slate-900 text-sm group-hover:text-[#5ba4c7] transition-colors">{item.nombre}</td>
                         <td className="px-8 py-5 text-sm text-slate-500 font-medium">{item.categoria}</td>
                         <td className="px-8 py-5 text-center">
                           <span className={`px-4 py-1.5 rounded-full text-[11px] font-black uppercase tracking-wider shadow-sm border ${
-                            item.estado_fisico === 'Disponible' ? 'bg-[#94d6c6] text-slate-900 border-[#94d6c6]/20' :
-                            item.estado_fisico === 'Prestado' ? 'bg-[#5ba4c7] text-white border-[#5ba4c7]/20' :
+                            item.estado_unidad === 'Disponible' ? 'bg-[#94d6c6] text-slate-900 border-[#94d6c6]/20' :
+                            item.estado_unidad === 'Prestado' ? 'bg-[#5ba4c7] text-white border-[#5ba4c7]/20' :
                             'bg-[#ffcc6f] text-slate-900 border-[#ffcc6f]/20'
                           }`}>
-                            {item.estado_fisico}
+                            {item.estado_unidad}
                           </span>
-                        </td>
-                        <td className="px-8 py-5 text-center font-bold text-sm">
-                          {item.cantidad_disponible <= 2 ? (
-                            <span className="inline-flex items-center justify-center gap-1.5 text-rose-600 bg-rose-50 px-3 py-1.5 rounded-xl border border-rose-100 shadow-sm" title="¡Stock bajo!">
-                              <AlertCircle size={14} strokeWidth={3} />
-                              {item.cantidad_disponible} / {item.cantidad_total}
-                            </span>
-                          ) : (
-                            <span className="text-slate-900">{item.cantidad_disponible} / {item.cantidad_total}</span>
-                          )}
                         </td>
                         <td className="px-8 py-5 text-sm text-slate-500 font-medium">{item.descripcion}</td>
                         <td className="px-8 py-5">
@@ -434,7 +451,7 @@ const handleRemoveImage = () => {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={7} className="px-8 py-20 text-center">
+                      <td colSpan={6} className="px-8 py-20 text-center">
                         <div className="flex flex-col items-center gap-4">
                           <div className="bg-slate-50 p-6 rounded-full">
                             <FilterX className="text-slate-300 w-12 h-12" />
@@ -518,14 +535,14 @@ const handleRemoveImage = () => {
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-slate-700 ml-1">Cantidad Total</label>
+                  <label className="text-sm font-bold text-slate-700 ml-1">Cantidad de unidades</label>
                   <input 
                     type="number" 
                     value={formData.cantidad_total}
                     onChange={(e) => {
-                      const val = parseInt(e.target.value);
-                      setFormData({...formData, cantidad_total: val, cantidad_disponible: val});
-                    }}
+  const val = parseInt(e.target.value);
+  setFormData({...formData, cantidad_total: val});
+}}
                     min="1"
                     className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-[#5ba4c7]/10 focus:border-[#5ba4c7] transition-all"
                     required
@@ -667,8 +684,7 @@ const handleRemoveImage = () => {
                 {selectedItem.nombre}
               </h3>
               <p className="text-sm text-slate-500 font-medium mt-1">
-                Código: {selectedItem.codigo_articulo}
-              </p>
+Código: {selectedItem.codigo_unidad}              </p>
             </div>
 
             <button
@@ -694,22 +710,15 @@ const handleRemoveImage = () => {
                 Estado físico
               </p>
               <span className={`inline-flex px-4 py-1.5 rounded-full text-[11px] font-black uppercase tracking-wider shadow-sm border ${
-                selectedItem.estado_fisico === 'Disponible' ? 'bg-[#94d6c6] text-slate-900 border-[#94d6c6]/20' :
-                selectedItem.estado_fisico === 'Prestado' ? 'bg-[#5ba4c7] text-white border-[#5ba4c7]/20' :
+                selectedItem.estado_unidad === 'Disponible' ? 'bg-[#94d6c6] text-slate-900 border-[#94d6c6]/20' :
+                selectedItem.estado_unidad === 'Prestado' ? 'bg-[#5ba4c7] text-white border-[#5ba4c7]/20' :
                 'bg-[#ffcc6f] text-slate-900 border-[#ffcc6f]/20'
               }`}>
-                {selectedItem.estado_fisico}
+                {selectedItem.estado_unidad}
               </span>
             </div>
 
-            <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
-              <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">
-                Stock disponible
-              </p>
-              <p className="text-sm font-bold text-slate-800">
-                {selectedItem.cantidad_disponible} / {selectedItem.cantidad_total}
-              </p>
-            </div>
+            
 
             <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
               <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">
