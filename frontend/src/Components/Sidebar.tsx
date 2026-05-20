@@ -26,8 +26,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onLogout, onNavigate }) =
     if (userStr) {
       try {
         const user = JSON.parse(userStr);
-        setUserName(user.nombre.split(' ')[0]);
-        setUserRol(user.rol);
+        setUserName(user.nombre?.split(' ')[0] || 'Usuario');
+        setUserRol(user.rol || 'Administrador');
       } catch (error) {
         console.error('Error al parsear usuario:', error);
       }
@@ -38,85 +38,103 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onLogout, onNavigate }) =
     {
       view: 'dashboard',
       label: 'Dashboard',
-      icon: <LayoutDashboard size={20} />
+      icon: <LayoutDashboard size={19} />
     },
     {
       view: 'inventario',
       label: 'Inventario',
-      icon: <Package size={20} />
+      icon: <Package size={19} />
     },
     {
       view: 'prestamos',
       label: 'Préstamos',
-      icon: <ArrowLeftRight size={20} />
+      icon: <ArrowLeftRight size={19} />
     },
     {
       view: 'devoluciones',
       label: 'Devoluciones',
-      icon: <RotateCcw size={20} />
+      icon: <RotateCcw size={19} />
     },
     {
       view: 'beneficiarios',
       label: 'Beneficiarios',
-      icon: <Users size={20} />
+      icon: <Users size={19} />
     },
     {
       view: 'reportes',
       label: 'Reportes',
-      icon: <BarChart3 size={20} />
+      icon: <BarChart3 size={19} />
     },
     {
       view: 'usuarios',
       label: 'Usuarios',
-      icon: <UserCircle size={20} />
+      icon: <UserCircle size={19} />
     }
   ];
 
   return (
-    <aside className="w-64 bg-[#5ba4c7] flex flex-col p-6 h-full text-white shadow-xl">
-      <div className="flex flex-col items-center mb-10 px-2">
-        <img
-          src="/src/assets/logo.png"
-          alt="Palabras de Esperanza Logo"
-          className="w-full h-auto object-contain mb-2 drop-shadow-md"
-        />
-      </div>
+    <aside className="w-64 bg-[#5ba4c7] flex flex-col h-full text-white shadow-2xl relative overflow-hidden">
+      {/* Fondos decorativos suaves */}
+      <div className="absolute -top-24 -left-24 w-56 h-56 bg-white/10 rounded-full blur-3xl"></div>
+      <div className="absolute top-40 -right-28 w-56 h-56 bg-[#94d6c6]/30 rounded-full blur-3xl"></div>
+      <div className="absolute bottom-20 -left-28 w-56 h-56 bg-white/10 rounded-full blur-3xl"></div>
 
-      <nav className="flex-1 space-y-2">
-        {menuItems.map((item) => (
-          <NavItem
-            key={item.view}
-            icon={item.icon}
-            label={item.label}
-            active={activeView === item.view}
-            onClick={() => onNavigate(item.view)}
-          />
-        ))}
-      </nav>
-
-      <div className="mt-auto pt-8 border-t border-white/10 flex flex-col gap-4">
-        <div className="flex items-center gap-3 px-3 py-3 rounded-2xl bg-white/10 backdrop-blur-sm">
-          <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-white font-bold text-sm shadow-sm uppercase">
-            {userName ? userName.charAt(0) : 'U'}
+      <div className="relative z-10 flex flex-col h-full p-5">
+        {/* Logo */}
+        <div className="mb-8">
+          <div className="bg-white rounded-[30px] px-4 py-5 shadow-xl shadow-slate-900/10 border border-white/50">
+            <img
+              src="/src/assets/logo.png"
+              alt="Palabras de Esperanza Logo"
+              className="w-full h-auto object-contain drop-shadow-sm"
+            />
           </div>
 
-          <div>
-            <p className="text-sm font-bold text-white">
-              {userName || 'Usuario'}
-            </p>
-            <p className="text-[10px] text-white/70 font-medium capitalize">
-              {userRol || 'Administrador'}
+          <div className="mt-4 mx-auto w-fit px-4 py-1.5 rounded-full bg-white/15 border border-white/20 backdrop-blur-md">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/90">
+              Panel Administrativo
             </p>
           </div>
         </div>
 
-        <button
-          onClick={onLogout}
-          className="flex items-center gap-3 text-white font-black text-sm px-2 transition-all w-full text-left hover:opacity-70"
-        >
-          <LogOut size={20} />
-          <span>Cerrar sesión</span>
-        </button>
+        {/* Menú */}
+        <nav className="flex-1 space-y-2">
+          {menuItems.map((item) => (
+            <NavItem
+              key={item.view}
+              icon={item.icon}
+              label={item.label}
+              active={activeView === item.view}
+              onClick={() => onNavigate(item.view)}
+            />
+          ))}
+        </nav>
+
+        {/* Usuario */}
+        <div className="pt-6 border-t border-white/20 flex flex-col gap-4">
+          <div className="flex items-center gap-3 px-4 py-3 rounded-[24px] bg-white/15 border border-white/15 backdrop-blur-md shadow-lg shadow-slate-900/5">
+            <div className="w-11 h-11 rounded-2xl bg-white/25 flex items-center justify-center text-white font-black text-sm shadow-sm uppercase border border-white/20">
+              {userName ? userName.charAt(0) : 'U'}
+            </div>
+
+            <div className="min-w-0">
+              <p className="text-sm font-black text-white truncate">
+                {userName || 'Usuario'}
+              </p>
+              <p className="text-[10px] text-white/75 font-bold capitalize truncate">
+                {userRol || 'Administrador'}
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={onLogout}
+            className="flex items-center gap-3 text-white/90 hover:text-white font-black text-sm px-4 py-3 rounded-2xl transition-all w-full text-left hover:bg-white/15 active:scale-[0.98]"
+          >
+            <LogOut size={19} />
+            <span>Cerrar sesión</span>
+          </button>
+        </div>
       </div>
     </aside>
   );
@@ -135,15 +153,26 @@ const NavItem = ({
 }) => (
   <button
     onClick={onClick}
-    className={`w-full flex items-center gap-4 px-4 py-3 rounded-2xl transition-all font-black text-sm text-left ${
+    className={`group relative w-full flex items-center gap-3 px-4 py-3 rounded-[22px] transition-all font-black text-sm text-left active:scale-[0.98] ${
       active
-        ? 'bg-white/20 text-white'
-        : 'text-white/60 hover:text-white hover:bg-white/10'
+        ? 'bg-white text-[#2f8caf] shadow-xl shadow-slate-900/10'
+        : 'text-white/75 hover:text-white hover:bg-white/15'
     }`}
   >
-    <div className={`${active ? 'opacity-100' : 'opacity-60'}`}>
+    {active && (
+      <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-8 rounded-r-full bg-[#ffcc6f]"></span>
+    )}
+
+    <div
+      className={`w-9 h-9 rounded-2xl flex items-center justify-center transition-all ${
+        active
+          ? 'bg-[#5ba4c7]/10 text-[#2f8caf]'
+          : 'bg-white/10 text-white/75 group-hover:bg-white/20 group-hover:text-white'
+      }`}
+    >
       {icon}
     </div>
+
     <span className="tracking-wide">{label}</span>
   </button>
 );
