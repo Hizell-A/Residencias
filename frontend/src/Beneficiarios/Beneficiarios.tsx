@@ -227,7 +227,10 @@ const handleRemoveIdentificacionFile = () => {
           identificacion,
           telefono,
           correo,
-          direccion
+          direccion,
+          identificacion_archivo_nombre: archivoIdentificacion?.nombre || null,
+          identificacion_archivo_tipo: archivoIdentificacion?.tipo || null,
+          identificacion_archivo_url: archivoIdentificacion?.url || null
         })
       });
       if (res.ok) {

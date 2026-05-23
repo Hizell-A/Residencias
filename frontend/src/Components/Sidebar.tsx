@@ -6,7 +6,6 @@ import {
   RotateCcw,
   Users,
   BarChart3,
-  UserCircle,
   LogOut
 } from 'lucide-react';
 
@@ -64,11 +63,6 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onLogout, onNavigate }) =
       view: 'reportes',
       label: 'Reportes',
       icon: <BarChart3 size={19} />
-    },
-    {
-      view: 'usuarios',
-      label: 'Usuarios',
-      icon: <UserCircle size={19} />
     }
   ];
 

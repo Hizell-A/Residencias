@@ -11,7 +11,8 @@ const PORT = 3000;
 
 // Middleware para aceptar peticiones del frontend
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '5mb' }));
+app.use(express.urlencoded({ limit: '5mb', extended: true }));
 
 // RUTA DE REGISTRO (Sign Up)
 app.post('/registro', async (req, res) => {
@@ -270,11 +271,79 @@ app.delete('/inventario/:id', async (req, res) => {
 // RUTAS DE BENEFICIARIOS
 // ==========================================
 
+// Función auxiliar para obtener un beneficiario con la información de su identificación oficial desde la galería
+async function obtenerBeneficiarioCompleto(id) {
+    const queryText = `
+        SELECT 
+            b.id_beneficiario,
+            b.nombre_completo,
+            b.identificacion,
+            b.telefono,
+            b.correo,
+            b.direccion,
+            b.fecha_registro,
+            b.id_imagen_identificacion,
+            g.nombre_archivo AS identificacion_archivo_nombre,
+            g.tipo_mime AS identificacion_archivo_tipo,
+            g.imagen_binaria
+        FROM beneficiarios b
+        LEFT JOIN galeria_imagenes g ON b.id_imagen_identificacion = g.id
+        WHERE b.id_beneficiario = $1
+    `;
+    const res = await db.query(queryText, [id]);
+    if (res.rows.length === 0) return null;
+    
+    const row = res.rows[0];
+    return {
+        id_beneficiario: row.id_beneficiario,
+        nombre_completo: row.nombre_completo,
+        identificacion: row.identificacion,
+        telefono: row.telefono,
+        correo: row.correo,
+        direccion: row.direccion,
+        fecha_registro: row.fecha_registro,
+        id_imagen_identificacion: row.id_imagen_identificacion,
+        identificacion_archivo_nombre: row.identificacion_archivo_nombre,
+        identificacion_archivo_tipo: row.identificacion_archivo_tipo,
+        identificacion_archivo_url: row.imagen_binaria ? row.imagen_binaria.toString('utf-8') : null
+    };
+}
+
 // OBTENER TODOS LOS BENEFICIARIOS (GET /beneficiarios)
 app.get('/beneficiarios', async (req, res) => {
     try {
-        const resultado = await db.query('SELECT * FROM beneficiarios ORDER BY id_beneficiario ASC');
-        res.json(resultado.rows);
+        const queryText = `
+            SELECT 
+                b.id_beneficiario,
+                b.nombre_completo,
+                b.identificacion,
+                b.telefono,
+                b.correo,
+                b.direccion,
+                b.fecha_registro,
+                b.id_imagen_identificacion,
+                g.nombre_archivo AS identificacion_archivo_nombre,
+                g.tipo_mime AS identificacion_archivo_tipo,
+                g.imagen_binaria
+            FROM beneficiarios b
+            LEFT JOIN galeria_imagenes g ON b.id_imagen_identificacion = g.id
+            ORDER BY b.id_beneficiario ASC
+        `;
+        const resultado = await db.query(queryText);
+        const rows = resultado.rows.map(row => ({
+            id_beneficiario: row.id_beneficiario,
+            nombre_completo: row.nombre_completo,
+            identificacion: row.identificacion,
+            telefono: row.telefono,
+            correo: row.correo,
+            direccion: row.direccion,
+            fecha_registro: row.fecha_registro,
+            id_imagen_identificacion: row.id_imagen_identificacion,
+            identificacion_archivo_nombre: row.identificacion_archivo_nombre,
+            identificacion_archivo_tipo: row.identificacion_archivo_tipo,
+            identificacion_archivo_url: row.imagen_binaria ? row.imagen_binaria.toString('utf-8') : null
+        }));
+        res.json(rows);
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Error al obtener los beneficiarios' });
@@ -283,7 +352,16 @@ app.get('/beneficiarios', async (req, res) => {
 
 // AGREGAR NUEVO BENEFICIARIO (POST /beneficiarios)
 app.post('/beneficiarios', async (req, res) => {
-    const { nombre_completo, identificacion, telefono, correo, direccion } = req.body;
+    const { 
+        nombre_completo, 
+        identificacion, 
+        telefono, 
+        correo, 
+        direccion, 
+        identificacion_archivo_nombre, 
+        identificacion_archivo_tipo, 
+        identificacion_archivo_url 
+    } = req.body;
     try {
         // Validación de Identificación Única
         const existe = await db.query('SELECT id_beneficiario FROM beneficiarios WHERE identificacion = $1', [identificacion]);
@@ -291,14 +369,27 @@ app.post('/beneficiarios', async (req, res) => {
             return res.status(400).json({ error: 'Este usuario ya está registrado' });
         }
 
+        let id_imagen_identificacion = null;
+        if (identificacion_archivo_url) {
+            const buffer = Buffer.from(identificacion_archivo_url, 'utf-8');
+            const resGaleria = await db.query(
+                `INSERT INTO galeria_imagenes (nombre_archivo, tipo_mime, imagen_binaria)
+                 VALUES ($1, $2, $3) RETURNING id`,
+                [identificacion_archivo_nombre || 'identificacion_ine.png', identificacion_archivo_tipo || 'image/png', buffer]
+            );
+            id_imagen_identificacion = resGaleria.rows[0].id;
+        }
+
         const resultado = await db.query(
             `INSERT INTO beneficiarios 
-             (nombre_completo, identificacion, telefono, correo, direccion) 
-             VALUES ($1, $2, $3, $4, $5) 
-             RETURNING *`,
-            [nombre_completo, identificacion, telefono, correo, direccion]
+             (nombre_completo, identificacion, telefono, correo, direccion, id_imagen_identificacion) 
+             VALUES ($1, $2, $3, $4, $5, $6) 
+             RETURNING id_beneficiario`,
+            [nombre_completo, identificacion, telefono, correo, direccion, id_imagen_identificacion]
         );
-        res.status(201).json({ mensaje: 'Beneficiario agregado exitosamente', beneficiario: resultado.rows[0] });
+
+        const nuevoBeneficiario = await obtenerBeneficiarioCompleto(resultado.rows[0].id_beneficiario);
+        res.status(201).json({ mensaje: 'Beneficiario agregado exitosamente', beneficiario: nuevoBeneficiario });
     } catch (error) {
         console.error(error);
         if (error.code === '23505') { // Postgres Unique Violation
@@ -311,7 +402,16 @@ app.post('/beneficiarios', async (req, res) => {
 // ACTUALIZAR BENEFICIARIO (PUT /beneficiarios/:id)
 app.put('/beneficiarios/:id', async (req, res) => {
     const { id } = req.params;
-    const { nombre_completo, identificacion, telefono, correo, direccion } = req.body;
+    const { 
+        nombre_completo, 
+        identificacion, 
+        telefono, 
+        correo, 
+        direccion, 
+        identificacion_archivo_nombre, 
+        identificacion_archivo_tipo, 
+        identificacion_archivo_url 
+    } = req.body;
     try {
         // Verificar si la nueva identificación ya pertenece a otro usuario
         if (identificacion) {
@@ -321,22 +421,66 @@ app.put('/beneficiarios/:id', async (req, res) => {
             }
         }
 
-        const resultado = await db.query(
-            `UPDATE beneficiarios 
-             SET nombre_completo = COALESCE($1, nombre_completo),
-                 identificacion = COALESCE($2, identificacion),
-                 telefono = COALESCE($3, telefono),
-                 correo = COALESCE($4, correo),
-                 direccion = COALESCE($5, direccion)
-             WHERE id_beneficiario = $6 
-             RETURNING *`,
-            [nombre_completo, identificacion, telefono, correo, direccion, id]
+        // Obtener la imagen actual para detectar cambios y evitar duplicados o registros huérfanos
+        const actualRes = await db.query(
+            `SELECT b.id_imagen_identificacion, g.imagen_binaria 
+             FROM beneficiarios b 
+             LEFT JOIN galeria_imagenes g ON b.id_imagen_identificacion = g.id 
+             WHERE b.id_beneficiario = $1`,
+            [id]
         );
 
-        if (resultado.rows.length === 0) {
+        if (actualRes.rows.length === 0) {
             return res.status(404).json({ error: 'Beneficiario no encontrado' });
         }
-        res.json({ mensaje: 'Beneficiario actualizado exitosamente', beneficiario: resultado.rows[0] });
+
+        const oldImageId = actualRes.rows[0].id_imagen_identificacion;
+        const oldImageBuffer = actualRes.rows[0].imagen_binaria;
+        const oldImageUrl = oldImageBuffer ? oldImageBuffer.toString('utf-8') : null;
+
+        let id_imagen_identificacion = oldImageId;
+
+        // Si se envió la propiedad de la URL del archivo, evaluar si cambió
+        if (req.body.hasOwnProperty('identificacion_archivo_url')) {
+            if (identificacion_archivo_url !== oldImageUrl) {
+                if (identificacion_archivo_url) {
+                    // Es un archivo nuevo -> Insertar en la tabla galeria_imagenes
+                    const buffer = Buffer.from(identificacion_archivo_url, 'utf-8');
+                    const resGaleria = await db.query(
+                        `INSERT INTO galeria_imagenes (nombre_archivo, tipo_mime, imagen_binaria)
+                         VALUES ($1, $2, $3) RETURNING id`,
+                        [identificacion_archivo_nombre || 'identificacion_ine.png', identificacion_archivo_tipo || 'image/png', buffer]
+                    );
+                    id_imagen_identificacion = resGaleria.rows[0].id;
+                } else {
+                    // El archivo fue removido
+                    id_imagen_identificacion = null;
+                }
+            }
+        }
+
+        const queryParams = [nombre_completo, identificacion, telefono, correo, direccion, id_imagen_identificacion, id];
+        const queryText = `
+            UPDATE beneficiarios 
+            SET nombre_completo = COALESCE($1, nombre_completo),
+                identificacion = COALESCE($2, identificacion),
+                telefono = COALESCE($3, telefono),
+                correo = COALESCE($4, correo),
+                direccion = COALESCE($5, direccion),
+                id_imagen_identificacion = $6
+            WHERE id_beneficiario = $7 
+            RETURNING *
+        `;
+
+        await db.query(queryText, queryParams);
+
+        // Si la imagen cambió y había una imagen previa, eliminarla de la galería
+        if (req.body.hasOwnProperty('identificacion_archivo_url') && identificacion_archivo_url !== oldImageUrl && oldImageId) {
+            await db.query('DELETE FROM galeria_imagenes WHERE id = $1', [oldImageId]);
+        }
+
+        const beneficiarioActualizado = await obtenerBeneficiarioCompleto(id);
+        res.json({ mensaje: 'Beneficiario actualizado exitosamente', beneficiario: beneficiarioActualizado });
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Error al actualizar el beneficiario' });
@@ -357,6 +501,13 @@ app.delete('/beneficiarios/:id', async (req, res) => {
         if (resultado.rows.length === 0) {
             return res.status(404).json({ error: 'Beneficiario no encontrado' });
         }
+
+        // Si el beneficiario tenía una imagen en la galería, limpiarla también de galeria_imagenes
+        const oldImageId = resultado.rows[0].id_imagen_identificacion;
+        if (oldImageId) {
+            await db.query('DELETE FROM galeria_imagenes WHERE id = $1', [oldImageId]);
+        }
+
         res.json({ mensaje: 'Beneficiario eliminado exitosamente', beneficiario: resultado.rows[0] });
     } catch (error) {
         console.error(error);
