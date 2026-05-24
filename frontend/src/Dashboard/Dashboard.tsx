@@ -86,7 +86,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, onNavigate }) => {
         console.error("Error al parsear usuario:", e);
       }
     }
-    fetch('http://localhost:3000/reportes/resumen')
+    fetch('http://localhost:3000/reportes/resumen', { credentials: 'include' })
       .then(res => res.json())
       .then(data => {
         setResumen(data);
@@ -94,7 +94,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, onNavigate }) => {
       })
       .catch(err => console.error("Error fetching resumen:", err));
 
-    fetch('http://localhost:3000/dashboard/actividad')
+    fetch('http://localhost:3000/dashboard/actividad', { credentials: 'include' })
       .then(res => res.json())
       .then(data => {
         setActividades(data);
@@ -102,7 +102,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, onNavigate }) => {
       })
       .catch(err => console.error("Error fetching actividad:", err));
 
-    fetch('http://localhost:3000/reportes/morosidad')
+    fetch('http://localhost:3000/reportes/morosidad', { credentials: 'include' })
       .then(res => res.json())
       .then(data => {
         setMorosidad(data);
@@ -110,7 +110,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, onNavigate }) => {
       })
       .catch(err => console.error("Error fetching morosidad:", err));
 
-    fetch('http://localhost:3000/reportes/prestamos-mes')
+    fetch('http://localhost:3000/reportes/prestamos-mes', { credentials: 'include' })
       .then(res => res.json())
       .then(data => {
         // Formatear meses de YYYY-MM a un nombre corto
@@ -126,7 +126,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, onNavigate }) => {
       })
       .catch(err => console.error("Error fetching actividad mensual:", err));
 
-    fetch('http://localhost:3000/dashboard/inventario-categoria')
+    fetch('http://localhost:3000/dashboard/inventario-categoria', { credentials: 'include' })
       .then(res => res.json())
       .then(data => {
         setInventarioCategoria(data);

@@ -2,6 +2,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('./db');
@@ -10,83 +11,91 @@ const app = express();
 const PORT = 3000;
 
 // Middleware para aceptar peticiones del frontend
-app.use(cors());
+app.use(cors({
+    origin: 'http://localhost:5173',
+    credentials: true
+}));
+app.use(cookieParser());
 app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ limit: '5mb', extended: true }));
 
-// RUTA DE REGISTRO (Sign Up)
-app.post('/registro', async (req, res) => {
-    const { nombre, correo, password, rol } = req.body;
+// MIDDLEWARE DE VERIFICACIÓN DE SESIÓN (SSO JWT a través de Cookie HTTP-Only)
+const verificarAccesoOrtopedia = async (req, res, next) => {
+    const token = req.cookies.auth_token;
+    if (!token) {
+        return res.status(401).json({ error: 'Token no proporcionado' });
+    }
 
     try {
-        // 1. Verificar si el usuario ya existe
-        const usuarioExistente = await db.query('SELECT * FROM usuarios WHERE correo = $1', [correo]);
-        if (usuarioExistente.rows.length > 0) {
-            return res.status(400).json({ error: 'El correo ya está registrado' });
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        
+        // Verificar si el usuario tiene el acceso requerido ("ortopedia")
+        const roles = decoded.roles || decoded.rol;
+        let hasAccess = false;
+
+        if (Array.isArray(roles)) {
+            hasAccess = roles.includes('ortopedia');
+        } else if (typeof roles === 'string') {
+            hasAccess = roles.split(',').map(r => r.trim()).includes('ortopedia');
         }
 
-        // 2. Encriptar la contraseña
-        const salt = await bcrypt.genSalt(10);
-        const passwordHash = await bcrypt.hash(password, salt);
+        if (!hasAccess) {
+            return res.status(403).json({ error: 'Acceso denegado: se requiere el rol ortopedia' });
+        }
 
-        // 3. Guardar el usuario en la base de datos
-        const nuevoUsuario = await db.query(
-            'INSERT INTO usuarios (nombre, correo, password_hash, rol) VALUES ($1, $2, $3, $4) RETURNING id_usuario, nombre, correo, rol',
-            [nombre, correo, passwordHash, rol || 'operador']
-        );
+        // Inyectar los datos decodificados del token en la petición
+        req.usuario = decoded;
 
-        res.status(201).json({ mensaje: 'Usuario registrado exitosamente', usuario: nuevoUsuario.rows[0] });
+        // Upsert en la tabla usuarios local
+        const id_usuario = decoded.id_usuario || decoded.id;
+        if (!id_usuario) {
+            return res.status(400).json({ error: 'El token de acceso no contiene un identificador de usuario válido' });
+        }
+
+        const nombre = decoded.nombre || decoded.name || 'Usuario SSO';
+        const correo = decoded.correo || decoded.email || '';
+        const rol = decoded.rol || (Array.isArray(decoded.roles) ? decoded.roles.join(',') : '') || 'operador';
+
+        // Buscar si el id_usuario existe localmente
+        const existeUsuario = await db.query('SELECT id_usuario FROM usuarios WHERE id_usuario = $1', [id_usuario]);
+        if (existeUsuario.rows.length === 0) {
+            // INSERT (utilizando valores seguros para campos no nulos requeridos por la base de datos)
+            await db.query(
+                `INSERT INTO usuarios (id_usuario, nombre, correo, password_hash, rol, verificado) 
+                 VALUES ($1, $2, $3, $4, $5, $6)`,
+                [id_usuario, nombre, correo, 'sso_login_dummy_hash', rol, true]
+            );
+        } else {
+            // UPDATE
+            await db.query(
+                `UPDATE usuarios 
+                 SET nombre = $1, correo = $2, rol = $3 
+                 WHERE id_usuario = $4`,
+                [nombre, correo, rol, id_usuario]
+            );
+        }
+
+        next();
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: 'Error al registrar el usuario' });
+        console.error('Error de verificación JWT/SSO:', error);
+        return res.status(401).json({ error: 'Token inválido o expirado' });
     }
+};
+
+// ENDPOINT DE ESTADO DE AUTENTICACIÓN
+app.get('/auth/status', verificarAccesoOrtopedia, (req, res) => {
+    res.json({ authenticated: true, usuario: req.usuario });
 });
 
-// RUTA DE INICIO DE SESIÓN (Login)
-app.post('/login', async (req, res) => {
-    const { correo, password } = req.body;
-
-    try {
-        // 1. Buscar al usuario por correo
-        const resultado = await db.query('SELECT * FROM usuarios WHERE correo = $1', [correo]);
-        if (resultado.rows.length === 0) {
-            return res.status(400).json({ error: 'Correo o contraseña incorrectos' });
-        }
-
-        const usuario = resultado.rows[0];
-
-        if (usuario.activo === false) {
-            return res.status(403).json({ error: 'La cuenta está deshabilitada' });
-        }
-
-        // 2. Comparar la contraseña ingresada con la encriptada en la BD
-        const passwordValida = await bcrypt.compare(password, usuario.password_hash);
-        if (!passwordValida) {
-            return res.status(400).json({ error: 'Correo o contraseña incorrectos' });
-        }
-
-        // 3. Generar el Token (JWT)
-        const token = jwt.sign(
-            { id_usuario: usuario.id_usuario, rol: usuario.rol },
-            process.env.JWT_SECRET,
-            { expiresIn: '8h' } // El token expirará en 8 horas
-        );
-
-        // 4. Enviar el token y los datos básicos al frontend
-        res.json({
-            mensaje: 'Inicio de sesión exitoso',
-            token: token,
-            usuario: {
-                nombre: usuario.nombre,
-                correo: usuario.correo,
-                rol: usuario.rol
-            }
-        });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: 'Error al iniciar sesión' });
-    }
-});
+// APLICAR PROTECCIÓN A TODOS LOS ENDPOINTS DE LA APLICACIÓN
+app.use('/usuarios', verificarAccesoOrtopedia);
+app.use('/inventario', verificarAccesoOrtopedia);
+app.use('/beneficiarios', verificarAccesoOrtopedia);
+app.use('/prestamos', verificarAccesoOrtopedia);
+app.use('/devoluciones', verificarAccesoOrtopedia);
+app.use('/reportes', verificarAccesoOrtopedia);
+app.use('/dashboard', verificarAccesoOrtopedia);
+app.use('/categorias', verificarAccesoOrtopedia);
 
 // OBTENER TODOS LOS USUARIOS (GET /usuarios)
 app.get('/usuarios', async (req, res) => {

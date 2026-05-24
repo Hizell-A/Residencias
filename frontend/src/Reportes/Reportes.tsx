@@ -71,10 +71,10 @@ const Reportes: React.FC<ReportesProps> = ({ onLogout, onNavigate }) => {
       const qs = queryParams.toString() ? `?${queryParams.toString()}` : '';
 
       const [resResumen, resTop, resMes, resActividades] = await Promise.all([
-        fetch(`http://localhost:3000/reportes/resumen${qs}`),
-        fetch(`http://localhost:3000/reportes/top-aparatos${qs}`),
-        fetch(`http://localhost:3000/reportes/prestamos-mes${qs}`),
-        fetch('http://localhost:3000/dashboard/actividad')
+        fetch(`http://localhost:3000/reportes/resumen${qs}`, { credentials: 'include' }),
+        fetch(`http://localhost:3000/reportes/top-aparatos${qs}`, { credentials: 'include' }),
+        fetch(`http://localhost:3000/reportes/prestamos-mes${qs}`, { credentials: 'include' }),
+        fetch('http://localhost:3000/dashboard/actividad', { credentials: 'include' })
       ]);
 
       if (resResumen.ok) setResumen(await resResumen.json());
@@ -166,7 +166,7 @@ const actividadesHoy = actividades.filter(act => new Date(act.fecha).toDateStrin
 
   const handleExportarMorosidad = async () => {
     try {
-      const response = await fetch('http://localhost:3000/reportes/morosidad');
+      const response = await fetch('http://localhost:3000/reportes/morosidad', { credentials: 'include' });
       if (response.ok) {
         const data = await response.json();
         if (data.length === 0) {

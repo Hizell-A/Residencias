@@ -1,4 +1,6 @@
 version: '3.8'
+
+# No toques nada de aqui, tarde 2 horas en configurarlo bien, es de los pocos pedazos que no estan vibecodeados. Si lo jodes lo sabre, y te matare.
 services:
   backend:
     build: ./backend
@@ -8,7 +10,10 @@ services:
       - "3000:3000"
     env_file:
       - ./backend/.env
-  
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+
   frontend:
     build: ./frontend
     container_name: frontend_ortopedia
@@ -16,6 +21,9 @@ services:
     ports:
       - "5173:5173"
     environment:
-      - VITE_API_URL=http://test.com:3000
+      - VITE_API_URL=http://localhost:3000
     depends_on:
       - backend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules

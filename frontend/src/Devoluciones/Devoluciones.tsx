@@ -45,7 +45,7 @@ const Devoluciones: React.FC<DevolucionesProps> = ({ onLogout, onNavigate }) => 
 
   const fetchPrestamos = async () => {
     try {
-      const response = await fetch('http://localhost:3000/prestamos');
+      const response = await fetch('http://localhost:3000/prestamos', { credentials: 'include' });
       const data = await response.json();
       const activos = data.filter((p: any) => p.estado_prestamo === 'Activo');
       setActiveLoans(activos.map((p: any) => ({
@@ -63,7 +63,7 @@ const Devoluciones: React.FC<DevolucionesProps> = ({ onLogout, onNavigate }) => 
 
   const fetchDevoluciones = async () => {
     try {
-      const response = await fetch('http://localhost:3000/devoluciones');
+      const response = await fetch('http://localhost:3000/devoluciones', { credentials: 'include' });
       const data = await response.json();
       setHistorialDevoluciones(data);
     } catch (error) {
@@ -205,6 +205,7 @@ React.useEffect(() => {
       const response = await fetch('http://localhost:3000/devoluciones', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(datosDevolucion)
       });
       

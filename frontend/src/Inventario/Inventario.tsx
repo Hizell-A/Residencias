@@ -61,7 +61,7 @@ const Inventario: React.FC<InventarioProps> = ({ onLogout, onNavigate }) => {
 
   const fetchCategorias = async () => {
     try {
-      const res = await fetch('http://localhost:3000/categorias');
+      const res = await fetch('http://localhost:3000/categorias', { credentials: 'include' });
       if (!res.ok) throw new Error('Error al cargar categorías');
       const data = await res.json();
       setCategorias(data);
@@ -151,7 +151,7 @@ useEffect(() => {
       if (!localStorage.getItem('cache_inventory')) {
         setLoading(true);
       }
-      const res = await fetch('http://localhost:3000/inventario');
+      const res = await fetch('http://localhost:3000/inventario', { credentials: 'include' });
       if (!res.ok) throw new Error('Error al cargar el inventario');
       const data = await res.json();
       setInventoryData(data);
@@ -182,6 +182,7 @@ useEffect(() => {
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           ...formData,
           cantidad_total: 1,
@@ -214,7 +215,7 @@ useEffect(() => {
     
     setActionLoading(true);
     try {
-      const res = await fetch(`http://localhost:3000/inventario/${id}`, { method: 'DELETE' });
+      const res = await fetch(`http://localhost:3000/inventario/${id}`, { method: 'DELETE', credentials: 'include' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Error al eliminar');
       
@@ -848,6 +849,7 @@ Código: {selectedItem.codigo_articulo}              </p>
                   const res = await fetch('http://localhost:3000/categorias', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
                     body: JSON.stringify({
                       categoria: nuevaCatNombre.trim(),
                       abreviacion: nuevaCatAbbr.trim()
@@ -945,7 +947,8 @@ Código: {selectedItem.codigo_articulo}              </p>
                         if (!confirm(`¿Estás seguro de eliminar la categoría "${cat.categoria}"?`)) return;
                         try {
                           const res = await fetch(`http://localhost:3000/categorias/${cat.id_categoria}`, {
-                            method: 'DELETE'
+                            method: 'DELETE',
+                            credentials: 'include'
                           });
                           const data = await res.json();
                           if (!res.ok) throw new Error(data.error || 'Error al eliminar la categoría');

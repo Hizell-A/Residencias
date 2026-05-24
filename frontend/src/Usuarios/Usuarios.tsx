@@ -65,6 +65,7 @@ const Usuarios: React.FC<UsuariosProps> = ({ onLogout, onNavigate }) => {
       const res = await fetch(`http://localhost:3000/usuarios/${id}/estado`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ activo: !currentActivo }),
       });
       if (res.ok) {
@@ -79,7 +80,7 @@ const Usuarios: React.FC<UsuariosProps> = ({ onLogout, onNavigate }) => {
 
   const fetchUsuarios = async () => {
     try {
-      const res = await fetch('http://localhost:3000/usuarios');
+      const res = await fetch('http://localhost:3000/usuarios', { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
         setUsuariosData(data);
@@ -106,6 +107,7 @@ const Usuarios: React.FC<UsuariosProps> = ({ onLogout, onNavigate }) => {
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(body),
       });
 
@@ -154,6 +156,7 @@ const Usuarios: React.FC<UsuariosProps> = ({ onLogout, onNavigate }) => {
       const res = await fetch(`http://localhost:3000/usuarios/${editingUserId}/password`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ password: newPassword }),
       });
       if (res.ok) {
@@ -170,7 +173,7 @@ const Usuarios: React.FC<UsuariosProps> = ({ onLogout, onNavigate }) => {
   const openActivityLog = async (user: Usuario) => {
     setSelectedUserName(user.nombre);
     try {
-      const res = await fetch(`http://localhost:3000/usuarios/${user.id_usuario}/actividad`);
+      const res = await fetch(`http://localhost:3000/usuarios/${user.id_usuario}/actividad`, { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
         setActivityData(data);

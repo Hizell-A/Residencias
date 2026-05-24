@@ -92,9 +92,9 @@ const Prestamos: React.FC<PrestamosProps> = ({
   const fetchDatos = async () => {
     try {
       const [invRes, benRes, presRes] = await Promise.all([
-        fetch('http://localhost:3000/inventario'),
-        fetch('http://localhost:3000/beneficiarios'),
-        fetch('http://localhost:3000/prestamos')
+        fetch('http://localhost:3000/inventario', { credentials: 'include' }),
+        fetch('http://localhost:3000/beneficiarios', { credentials: 'include' }),
+        fetch('http://localhost:3000/prestamos', { credentials: 'include' })
       ]);
 
       if (invRes.ok) {
@@ -188,6 +188,7 @@ const Prestamos: React.FC<PrestamosProps> = ({
       const response = await fetch('http://localhost:3000/prestamos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           id_articulo: formData.aparato,
           id_beneficiario: formData.beneficiario,

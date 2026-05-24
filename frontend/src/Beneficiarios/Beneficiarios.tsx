@@ -69,7 +69,7 @@ const Beneficiarios: React.FC<BeneficiariosProps> = ({
 
   const fetchBeneficiarios = async () => {
     try {
-      const response = await fetch('http://localhost:3000/beneficiarios');
+      const response = await fetch('http://localhost:3000/beneficiarios', { credentials: 'include' });
       const data = await response.json();
       setBeneficiariosData(data);
     } catch (error) {
@@ -79,7 +79,7 @@ const Beneficiarios: React.FC<BeneficiariosProps> = ({
 
   const fetchPrestamos = async () => {
     try {
-      const response = await fetch('http://localhost:3000/prestamos');
+      const response = await fetch('http://localhost:3000/prestamos', { credentials: 'include' });
       const data = await response.json();
       setPrestamosData(data);
     } catch (error) {
@@ -139,7 +139,7 @@ const Beneficiarios: React.FC<BeneficiariosProps> = ({
     if (!window.confirm('¿Estás seguro de eliminar este beneficiario?')) return;
     
     try {
-      const res = await fetch(`http://localhost:3000/beneficiarios/${id}`, { method: 'DELETE' });
+      const res = await fetch(`http://localhost:3000/beneficiarios/${id}`, { method: 'DELETE', credentials: 'include' });
       if (res.ok) {
         fetchBeneficiarios();
       } else {
@@ -238,6 +238,7 @@ const handleRemoveIdentificacionFile = () => {
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           nombre_completo: nombreCompleto,
           identificacion,
