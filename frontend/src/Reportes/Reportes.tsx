@@ -27,6 +27,7 @@ const Reportes: React.FC<ReportesProps> = ({ onLogout, onNavigate }) => {
   });
   const [topAparatos, setTopAparatos] = useState<any[]>([]);
   const [prestamosMes, setPrestamosMes] = useState<any[]>([]);
+  const [actividades, setActividades] = useState<any[]>([]);
 
   const [filtroTiempo, setFiltroTiempo] = useState('todos');
   const [fechaInicio, setFechaInicio] = useState('');
@@ -69,15 +70,17 @@ const Reportes: React.FC<ReportesProps> = ({ onLogout, onNavigate }) => {
 
       const qs = queryParams.toString() ? `?${queryParams.toString()}` : '';
 
-      const [resResumen, resTop, resMes] = await Promise.all([
+      const [resResumen, resTop, resMes, resActividades] = await Promise.all([
         fetch(`http://localhost:3000/reportes/resumen${qs}`),
         fetch(`http://localhost:3000/reportes/top-aparatos${qs}`),
-        fetch(`http://localhost:3000/reportes/prestamos-mes${qs}`)
+        fetch(`http://localhost:3000/reportes/prestamos-mes${qs}`),
+        fetch('http://localhost:3000/dashboard/actividad')
       ]);
 
       if (resResumen.ok) setResumen(await resResumen.json());
       if (resTop.ok) setTopAparatos(await resTop.json());
       if (resMes.ok) setPrestamosMes(await resMes.json());
+      if (resActividades.ok) setActividades(await resActividades.json());
     } catch (error) {
       console.error('Error fetching data:', error);
     }
@@ -156,6 +159,9 @@ const porcentajePrestado =
   resumen.total_aparatos > 0
     ? Math.round((resumen.total_prestados / resumen.total_aparatos) * 100)
     : 0;
+
+const hoyStr = new Date().toDateString();
+const actividadesHoy = actividades.filter(act => new Date(act.fecha).toDateString() === hoyStr);
 
 
   const handleExportarMorosidad = async () => {
@@ -293,6 +299,60 @@ const porcentajePrestado =
               subtitle="Reparación o baja"
             />
           </div>
+
+          {/* Actividad Detallada de Hoy */}
+          <section className="bg-white rounded-[40px] border border-slate-100 shadow-sm p-8 space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-xl font-black text-slate-900">Actividad Detallada de Hoy</h3>
+                <p className="text-xs text-slate-500 font-bold mt-1">Desglose de préstamos y devoluciones procesados durante el día</p>
+              </div>
+              <div className="px-4 py-2 bg-[#ffe4c4] text-[#8a5b29] text-xs font-black uppercase tracking-widest rounded-full shadow-sm">
+                {actividadesHoy.length} Movimientos
+              </div>
+            </div>
+
+            <div className="overflow-x-auto rounded-2xl border border-slate-100">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-slate-50">
+                  <tr className="border-b border-slate-100">
+                    <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Hora</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Usuario</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Tipo</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Aparato</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {actividadesHoy.length > 0 ? (
+                    actividadesHoy.map((act, index) => (
+                      <tr key={index} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="px-6 py-4 text-slate-500 font-bold">
+                          {new Date(act.fecha).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+                        </td>
+                        <td className="px-6 py-4 font-black text-slate-900">{act.usuario}</td>
+                        <td className="px-6 py-4">
+                          <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${
+                            act.tipo === 'prestamo'
+                              ? 'bg-blue-100 text-blue-800 border-blue-200'
+                              : 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                          }`}>
+                            {act.tipo === 'prestamo' ? 'Préstamo' : 'Devolución'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-slate-600 font-medium">{act.aparato}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={4} className="px-6 py-8 text-center text-slate-400 font-medium">
+                        No se han registrado transacciones el día de hoy.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
 
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
             <section className="bg-white rounded-[40px] border border-slate-100 shadow-sm p-8">

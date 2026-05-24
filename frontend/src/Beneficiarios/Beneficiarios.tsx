@@ -18,6 +18,8 @@ import {
 interface BeneficiariosProps {
   onLogout: () => void;
   onNavigate: (view: string) => void;
+  initialOpenForm?: boolean;
+  onClearInitialAction?: () => void;
 }
 
 interface Beneficiario {
@@ -42,7 +44,12 @@ const TEMP_IDENTIFICACION_URL = '/src/assets/logo.png';
 const TEMP_IDENTIFICACION_NOMBRE = 'identificacion-temporal.png';
 const TEMP_IDENTIFICACION_TIPO = 'image/png';
 
-const Beneficiarios: React.FC<BeneficiariosProps> = ({ onLogout, onNavigate }) => {
+const Beneficiarios: React.FC<BeneficiariosProps> = ({ 
+  onLogout, 
+  onNavigate,
+  initialOpenForm,
+  onClearInitialAction
+}) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -95,6 +102,15 @@ const Beneficiarios: React.FC<BeneficiariosProps> = ({ onLogout, onNavigate }) =
     setArchivoIdentificacion(null);
     setIsModalOpen(true);
   };
+
+  useEffect(() => {
+    if (initialOpenForm) {
+      handleOpenNewModal();
+      if (onClearInitialAction) {
+        onClearInitialAction();
+      }
+    }
+  }, [initialOpenForm, onClearInitialAction]);
 
   const handleEdit = (beneficiario: Beneficiario, e: React.MouseEvent) => {
   e.stopPropagation();

@@ -11,6 +11,8 @@ import Usuarios from './Usuarios/Usuarios';
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentView, setCurrentView] = useState('dashboard');
+  const [beneficiariosInitialOpen, setBeneficiariosInitialOpen] = useState(false);
+  const [prestamosInitialOpen, setPrestamosInitialOpen] = useState(false);
 
   const handleLogin = () => {
     setIsAuthenticated(true);
@@ -23,7 +25,23 @@ function App() {
 
   // Función que envuelve setCurrentView para que tenga la firma (view: string) => void
   const handleNavigate = (view: string) => {
-    setCurrentView(view);
+    if (view === 'beneficiarios-nuevo') {
+      setCurrentView('beneficiarios');
+      setBeneficiariosInitialOpen(true);
+      setPrestamosInitialOpen(false);
+    } else if (view === 'prestamos-nuevo') {
+      setCurrentView('prestamos');
+      setPrestamosInitialOpen(true);
+      setBeneficiariosInitialOpen(false);
+    } else {
+      setCurrentView(view);
+      if (view !== 'beneficiarios') {
+        setBeneficiariosInitialOpen(false);
+      }
+      if (view !== 'prestamos') {
+        setPrestamosInitialOpen(false);
+      }
+    }
   };
 
   const renderView = () => {
@@ -33,11 +51,25 @@ function App() {
     case 'inventario':
       return <Inventario onLogout={handleLogout} onNavigate={handleNavigate} />;
     case 'prestamos':
-      return <Prestamos onLogout={handleLogout} onNavigate={handleNavigate} />;
+      return (
+        <Prestamos 
+          onLogout={handleLogout} 
+          onNavigate={handleNavigate} 
+          initialOpenForm={prestamosInitialOpen}
+          onClearInitialAction={() => setPrestamosInitialOpen(false)}
+        />
+      );
     case 'devoluciones':
       return <Devoluciones onLogout={handleLogout} onNavigate={handleNavigate} />;
     case 'beneficiarios':
-      return <Beneficiarios onLogout={handleLogout} onNavigate={handleNavigate} />;
+      return (
+        <Beneficiarios 
+          onLogout={handleLogout} 
+          onNavigate={handleNavigate} 
+          initialOpenForm={beneficiariosInitialOpen}
+          onClearInitialAction={() => setBeneficiariosInitialOpen(false)}
+        />
+      );
     case 'reportes':
       return <Reportes onLogout={handleLogout} onNavigate={handleNavigate} />;
     case 'usuarios':

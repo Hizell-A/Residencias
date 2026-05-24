@@ -19,9 +19,16 @@ import {
 interface PrestamosProps {
   onLogout: () => void;
   onNavigate: (view: string) => void;
+  initialOpenForm?: boolean;
+  onClearInitialAction?: () => void;
 }
 
-const Prestamos: React.FC<PrestamosProps> = ({ onLogout, onNavigate }) => {
+const Prestamos: React.FC<PrestamosProps> = ({ 
+  onLogout, 
+  onNavigate,
+  initialOpenForm,
+  onClearInitialAction
+}) => {
   const [isRegisterLoanModalOpen, setIsRegisterLoanModalOpen] = useState(false);
   const [codigoInput, setCodigoInput] = useState('');
   const [isImageExpanded, setIsImageExpanded] = useState(false);
@@ -110,6 +117,15 @@ const Prestamos: React.FC<PrestamosProps> = ({ onLogout, onNavigate }) => {
   useEffect(() => {
     fetchDatos();
   }, []);
+
+  useEffect(() => {
+    if (initialOpenForm) {
+      setIsRegisterLoanModalOpen(true);
+      if (onClearInitialAction) {
+        onClearInitialAction();
+      }
+    }
+  }, [initialOpenForm, onClearInitialAction]);
 
  
 

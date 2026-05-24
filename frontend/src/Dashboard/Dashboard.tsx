@@ -4,15 +4,14 @@ import { AreaChart, Area, ResponsiveContainer, Tooltip, XAxis } from 'recharts';
 import { 
   ArrowLeftRight, 
   RotateCcw, 
-  UserCircle, 
   Box,
   Wrench,
   AlertTriangle,
   TrendingUp,
   X,
-  AlertCircle,
   PhoneCall,
-  UserPlus
+  UserPlus,
+  FileText
 } from 'lucide-react';
 
 interface DashboardProps {
@@ -22,6 +21,7 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = ({ onLogout, onNavigate }) => {
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
+  const [selectedFilter, setSelectedFilter] = useState('todo');
   const [resumen, setResumen] = useState(() => {
     try {
       const cached = localStorage.getItem('cache_dashboard_resumen');
@@ -43,14 +43,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, onNavigate }) => {
   const [actividades, setActividades] = useState<any[]>(() => {
     try {
       const cached = localStorage.getItem('cache_dashboard_actividades');
-      return cached ? JSON.parse(cached) : [];
-    } catch {
-      return [];
-    }
-  });
-  const [stockCritico, setStockCritico] = useState<any[]>(() => {
-    try {
-      const cached = localStorage.getItem('cache_dashboard_stockCritico');
       return cached ? JSON.parse(cached) : [];
     } catch {
       return [];
@@ -110,14 +102,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, onNavigate }) => {
       })
       .catch(err => console.error("Error fetching actividad:", err));
 
-    fetch('http://localhost:3000/dashboard/stock-critico')
-      .then(res => res.json())
-      .then(data => {
-        setStockCritico(data);
-        localStorage.setItem('cache_dashboard_stockCritico', JSON.stringify(data));
-      })
-      .catch(err => console.error("Error fetching stock critico:", err));
-
     fetch('http://localhost:3000/reportes/morosidad')
       .then(res => res.json())
       .then(data => {
@@ -156,6 +140,18 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, onNavigate }) => {
     return date.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
   };
 
+  const hoyStr = new Date().toDateString();
+  const actividadesHoy = actividades.filter(act => new Date(act.fecha).toDateString() === hoyStr);
+  const prestamosHoy = actividadesHoy.filter(act => act.tipo === 'prestamo').length;
+  const devolucionesHoy = actividadesHoy.filter(act => act.tipo === 'devolucion').length;
+
+  const filteredActividades = actividades.filter(act => {
+    if (selectedFilter === 'todo') return true;
+    if (selectedFilter === 'prestamos') return act.tipo === 'prestamo';
+    if (selectedFilter === 'devoluciones') return act.tipo === 'devolucion';
+    return true;
+  });
+
   return (
     <div className="flex h-screen bg-[#f3f4f6] font-sans relative overflow-hidden text-slate-900">
       {/* Sidebar */}
@@ -173,33 +169,16 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, onNavigate }) => {
               <h1 className="text-3xl font-black text-slate-900 tracking-tight">Hola de nuevo, {userName || 'Usuario'}</h1>
               <p className="text-sm font-bold text-slate-500 mt-1">Aquí tienes el resumen de hoy.</p>
             </div>
-            {/* Minigráfica Sparkline */}
-            <div className="hidden lg:flex flex-col gap-1 items-start justify-center pl-8 border-l border-slate-200 h-10">
-              <span className="text-[9px] font-black uppercase tracking-widest text-emerald-500">Actividad Semanal</span>
-              <svg width="60" height="16" viewBox="0 0 60 16" className="overflow-visible mt-0.5">
-                <path d="M0,12 Q10,14 15,8 T30,10 T45,4 T60,2" fill="none" stroke="#10b981" strokeWidth="2.5" strokeLinecap="round" />
-                <circle cx="60" cy="2" r="2.5" fill="#10b981" className="animate-pulse" />
-              </svg>
-            </div>
+
           </div>
-          <div className="flex items-center gap-6">
-            
-            <div className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-full bg-rose-400 border-2 border-white shadow-sm flex items-center justify-center text-white">
-                <UserCircle size={24} />
-              </div>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400">
-                <path d="m6 9 6 6 6-6"/>
-              </svg>
-            </div>
-          </div>
+
         </header>
 
         <div className="px-12 pb-12 space-y-8">
           {/* Accesos Rápidos */}
           <div className="flex items-center gap-6">
             <button 
-              onClick={() => onNavigate('prestamos')} 
+              onClick={() => onNavigate('prestamos-nuevo')} 
               className="flex items-center gap-3 px-6 py-5 bg-[#5ba4c7] hover:bg-[#4a8eb0] text-white rounded-[24px] shadow-lg shadow-[#5ba4c7]/30 transition-all font-black text-sm flex-1 justify-center hover:-translate-y-1"
             >
               <ArrowLeftRight size={22} />
@@ -213,7 +192,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, onNavigate }) => {
               Recibir Devolución
             </button>
             <button 
-              onClick={() => onNavigate('beneficiarios')} 
+              onClick={() => onNavigate('beneficiarios-nuevo')} 
               className="flex items-center gap-3 px-6 py-5 bg-[#ff8a71] hover:bg-[#e6755e] text-white rounded-[24px] shadow-lg shadow-[#ff8a71]/30 transition-all font-black text-sm flex-1 justify-center hover:-translate-y-1"
             >
               <UserPlus size={22} />
@@ -230,34 +209,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, onNavigate }) => {
           </div>
 
           {/* Alertas Operativas */}
-          <div className="grid grid-cols-2 gap-8">
-            {/* Stock Crítico */}
-            <div className="bg-white p-8 rounded-[40px] shadow-sm space-y-6 border border-rose-100 relative overflow-hidden z-0">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-rose-50 rounded-bl-full -z-10"></div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-black text-slate-900">Stock Crítico</h3>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Aparatos por agotarse</p>
-                </div>
-                <div className="p-2 bg-rose-100 rounded-xl">
-                  <AlertCircle size={18} className="text-rose-500" />
-                </div>
-              </div>
-              
-              <div className="space-y-4">
-                {stockCritico.length > 0 ? stockCritico.map((item, i) => (
-                  <div key={i} className="flex items-center justify-between p-3 bg-slate-50 rounded-2xl border border-slate-100/50">
-                    <p className="text-sm font-bold text-slate-800">{item.nombre}</p>
-                    <div className={`px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-widest ${item.cantidad_disponible === 0 ? 'bg-rose-100 text-rose-600' : 'bg-orange-100 text-orange-600'}`}>
-                      {item.cantidad_disponible} disp.
-                    </div>
-                  </div>
-                )) : (
-                  <p className="text-sm text-slate-500 font-medium">No hay aparatos con stock crítico.</p>
-                )}
-              </div>
-            </div>
-
+          <div className="grid grid-cols-1 gap-8">
             {/* Morosidad Inmediata */}
             <div className="bg-white p-8 rounded-[40px] shadow-sm space-y-6 border border-amber-100 relative overflow-hidden z-0">
               <div className="absolute top-0 right-0 w-32 h-32 bg-amber-50 rounded-bl-full -z-10"></div>
@@ -367,72 +319,126 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, onNavigate }) => {
             </div>
 <link rel="icon" type="image/png" href="/src/assets/logo.png" />          </div>
 
-          <div className="grid grid-cols-3 gap-8">
-            {/* Support Tickets (Activity) */}
-            <div className="col-span-2 bg-white p-8 rounded-[40px] shadow-sm space-y-8 border border-slate-50">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xl font-black text-slate-900">Actividad Reciente</h3>
-                <div className="px-6 py-2 bg-black text-white text-[10px] font-black uppercase tracking-widest rounded-full">Hoy</div>
-              </div>
-
-              <div className="flex gap-4">
-                <button className="px-6 py-2 bg-rose-400 text-white text-[10px] font-black uppercase tracking-widest rounded-full">Todo</button>
-                <button className="px-6 py-2 bg-slate-50 text-slate-400 text-[10px] font-black uppercase tracking-widest rounded-full border border-slate-100">Préstamos</button>
-                <button className="px-6 py-2 bg-slate-50 text-slate-400 text-[10px] font-black uppercase tracking-widest rounded-full border border-slate-100">Devoluciones</button>
-                <button className="px-6 py-2 bg-slate-50 text-slate-400 text-[10px] font-black uppercase tracking-widest rounded-full border border-slate-100">Mantenimiento</button>
-              </div>
-
-              <div className="space-y-4">
-                {actividades.slice(0, 5).map((activity, index) => (
-                  <div key={index} className="flex items-center justify-between py-2 group cursor-pointer">
-                    <div className="flex items-center gap-4">
-                      <div className={`w-3 h-3 rounded-full ${activity.tipo === 'prestamo' ? 'bg-blue-400' : 'bg-emerald-400'}`}></div>
-                      <div>
-                        <p className="text-sm font-bold text-slate-700">{activity.usuario}</p>
-                      </div>
-                    </div>
-                    <p className="text-sm font-bold text-slate-900 flex-1 px-12">
-                      {activity.tipo === 'prestamo' ? 'Préstamo: ' : 'Devolución: '} {activity.aparato}
-                    </p>
-                    <div className={`px-4 py-1.5 text-[9px] font-black uppercase tracking-widest rounded-md border ${
-                      activity.tipo === 'prestamo' 
-                        ? 'bg-blue-50 text-blue-600 border-blue-100' 
-                        : 'bg-emerald-50 text-emerald-600 border-emerald-100'
-                    }`}>
-                      {formatTime(activity.fecha)}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Transactions */}
+          <div className="grid grid-cols-1 gap-8">
+            {/* Actividad Reciente & Resumen Diario */}
             <div className="bg-white p-8 rounded-[40px] shadow-sm space-y-8 border border-slate-50">
               <div className="flex items-center justify-between">
-                <h3 className="text-xl font-black text-slate-900">Transacciones</h3>
-              </div>
-              
-              <div className="space-y-6">
-                {actividades.slice(0, 7).map((activity, index) => (
-                  <div key={index} className="flex items-center justify-between group">
-                    <div className="flex items-center gap-3">
-                      <p className="text-sm font-bold text-slate-900 truncate w-32">{activity.usuario}</p>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <div className={`px-2 py-1 text-[8px] font-black uppercase tracking-widest rounded ${
-                        activity.tipo === 'prestamo' ? 'bg-blue-100 text-blue-500' : 'bg-emerald-100 text-emerald-500'
-                      }`}>
-                        {activity.tipo === 'prestamo' ? 'PRE' : 'DEV'}
-                      </div>
-                      <p className="text-sm font-black text-slate-900 truncate w-32 text-right" title={activity.aparato}>{activity.aparato}</p>
-                    </div>
-                  </div>
-                ))}
+                <div>
+                  <h3 className="text-xl font-black text-slate-900">Actividad Reciente</h3>
+                  <p className="text-xs text-slate-500 font-bold mt-1">Monitoreo de movimientos de hoy e histórico reciente</p>
+                </div>
+                <div className="px-6 py-2 bg-[#5ba4c7] text-white text-xs font-black uppercase tracking-widest rounded-full shadow-sm">
+                  {new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'short' })}
+                </div>
               </div>
 
-              <button className="w-full py-4 bg-[#94d6c6] text-slate-700 text-sm font-black rounded-2xl hover:opacity-90 transition-all">
-                Ver todas las transacciones
-              </button>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Panel Resumen del Día */}
+                <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 flex flex-col justify-between space-y-6">
+                  <div>
+                    <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Resumen de Hoy</h4>
+                    <div className="space-y-4">
+                      <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
+                        <div>
+                          <p className="text-2xl font-black text-[#5ba4c7]">{prestamosHoy}</p>
+                          <p className="text-xs font-bold text-slate-500">Préstamos Registrados</p>
+                        </div>
+                        <div className="w-10 h-10 rounded-xl bg-[#5ba4c7]/10 flex items-center justify-center text-[#5ba4c7]">
+                          <ArrowLeftRight size={20} />
+                        </div>
+                      </div>
+
+                      <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
+                        <div>
+                          <p className="text-2xl font-black text-[#94d6c6]">{devolucionesHoy}</p>
+                          <p className="text-xs font-bold text-slate-500">Devoluciones Recibidas</p>
+                        </div>
+                        <div className="w-10 h-10 rounded-xl bg-[#94d6c6]/10 flex items-center justify-center text-[#94d6c6]">
+                          <RotateCcw size={20} />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-4 border-t border-slate-200 space-y-3">
+                    <p className="text-xs text-slate-600 font-medium">
+                      {actividadesHoy.length > 0 
+                        ? `Se han registrado ${actividadesHoy.length} movimientos en total durante el día de hoy.` 
+                        : "Aún no se han registrado movimientos el día de hoy."}
+                    </p>
+                    <button 
+                      onClick={() => onNavigate('reportes')}
+                      className="w-full py-2.5 bg-[#5ba4c7]/10 hover:bg-[#5ba4c7]/20 text-[#2f8caf] text-xs font-black uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-2"
+                    >
+                      <FileText size={14} />
+                      Ver Reporte Detallado
+                    </button>
+                  </div>
+                </div>
+
+                {/* Listado de Actividad Reciente */}
+                <div className="lg:col-span-2 space-y-6">
+                  <div className="flex flex-wrap gap-3">
+                    <button 
+                      onClick={() => setSelectedFilter('todo')}
+                      className={`px-5 py-2.5 text-xs font-black uppercase tracking-widest rounded-full transition-all ${
+                        selectedFilter === 'todo' 
+                          ? 'bg-[#5ba4c7] text-white shadow-md shadow-[#5ba4c7]/20' 
+                          : 'bg-slate-50 text-slate-400 border border-slate-100 hover:bg-slate-100'
+                      }`}
+                    >
+                      Todo
+                    </button>
+                    <button 
+                      onClick={() => setSelectedFilter('prestamos')}
+                      className={`px-5 py-2.5 text-xs font-black uppercase tracking-widest rounded-full transition-all ${
+                        selectedFilter === 'prestamos' 
+                          ? 'bg-[#5ba4c7] text-white shadow-md shadow-[#5ba4c7]/20' 
+                          : 'bg-slate-50 text-slate-400 border border-slate-100 hover:bg-slate-100'
+                      }`}
+                    >
+                      Préstamos
+                    </button>
+                    <button 
+                      onClick={() => setSelectedFilter('devoluciones')}
+                      className={`px-5 py-2.5 text-xs font-black uppercase tracking-widest rounded-full transition-all ${
+                        selectedFilter === 'devoluciones' 
+                          ? 'bg-[#5ba4c7] text-white shadow-md shadow-[#5ba4c7]/20' 
+                          : 'bg-slate-50 text-slate-400 border border-slate-100 hover:bg-slate-100'
+                      }`}
+                    >
+                      Devoluciones
+                    </button>
+                  </div>
+
+                  <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2">
+                    {filteredActividades.length > 0 ? (
+                      filteredActividades.slice(0, 8).map((activity, index) => (
+                        <div key={index} className="flex items-center justify-between py-3 px-4 rounded-2xl hover:bg-slate-50 transition-all border border-transparent hover:border-slate-100 group cursor-pointer">
+                          <div className="flex items-center gap-4 min-w-0">
+                            <div className={`w-3 h-3 rounded-full shrink-0 ${activity.tipo === 'prestamo' ? 'bg-blue-400' : 'bg-emerald-400'}`}></div>
+                            <div className="min-w-0">
+                              <p className="text-sm font-black text-slate-800 truncate">{activity.usuario}</p>
+                            </div>
+                          </div>
+                          <p className="text-sm font-bold text-slate-600 flex-1 px-8 truncate text-center">
+                            {activity.tipo === 'prestamo' ? 'Préstamo: ' : 'Devolución: '} {activity.aparato}
+                          </p>
+                          <div className={`px-4 py-1.5 text-[9px] font-black uppercase tracking-widest rounded-md border shrink-0 ${
+                            activity.tipo === 'prestamo' 
+                              ? 'bg-blue-50 text-blue-600 border-blue-100' 
+                              : 'bg-emerald-50 text-emerald-600 border-emerald-100'
+                          }`}>
+                            {formatTime(activity.fecha)}
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-sm text-slate-500 font-medium text-center py-8">No hay registros de actividad para mostrar.</p>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
