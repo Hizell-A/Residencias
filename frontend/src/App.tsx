@@ -20,22 +20,28 @@ function App() {
   const [prestamosInitialOpen, setPrestamosInitialOpen] = useState(false);
 
   useEffect(() => {
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
     const verificarSesion = async () => {
       try {
-        const response = await fetch('http://localhost:3000/auth/status', {
+        const response = await fetch(`${API_URL}/auth/status`, {
           credentials: 'include',
         });
         
-        if (response.ok) {
-          const data = await response.json();
-          setUsuario(data.usuario);
-          localStorage.setItem('usuario', JSON.stringify(data.usuario));
-          setIsAuthenticated(true);
-        } else {
-          redirigirAlSSO();
+        // 🚨 SI EL SERVIDOR DICE QUE EL TOKEN NO VALE (401, 403, etc.)
+        if (!response.ok) {
+          throw new Error('Sesión inválida o expirada en el servidor');
         }
+        
+        const data = await response.json();
+        setUsuario(data.usuario);
+        localStorage.setItem('usuario', JSON.stringify(data.usuario));
+        setIsAuthenticated(true);
       } catch (error) {
-        console.error('Error al verificar sesión:', error);
+        console.error('Error de autenticación, redirigiendo al login:', error);
+        
+        // 🚀 ¡EL TRUCO MÁGICO!
+        // Si la cookie no sirve o el backend se cayó, lo mandamos directo al Login Maestro (SSO)
         redirigirAlSSO();
       } finally {
         setIsLoading(false);
@@ -67,8 +73,9 @@ function App() {
   }, [usuario]);
 
   const handleLogout = async () => {
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
     try {
-      await fetch('http://localhost:3000/auth/logout', {
+      await fetch(`${API_URL}/auth/logout`, {
         method: 'POST',
         credentials: 'include'
       });
