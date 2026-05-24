@@ -10,7 +10,10 @@ import {
   History,
   X,
   Printer,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Search,
+  ChevronDown,
+  Check
 } from 'lucide-react';
 
 interface PrestamosProps {
@@ -20,6 +23,8 @@ interface PrestamosProps {
 
 const Prestamos: React.FC<PrestamosProps> = ({ onLogout, onNavigate }) => {
   const [isRegisterLoanModalOpen, setIsRegisterLoanModalOpen] = useState(false);
+  const [codigoInput, setCodigoInput] = useState('');
+  const [isImageExpanded, setIsImageExpanded] = useState(false);
 
   const [formData, setFormData] = useState({
     beneficiario: '',
@@ -222,7 +227,24 @@ const Prestamos: React.FC<PrestamosProps> = ({ onLogout, onNavigate }) => {
       fechaDevolucion: '',
       observaciones: ''
     });
+    setCodigoInput('');
   };
+
+  const DEFAULT_IMAGE = '/src/assets/logo.png';
+
+  const beneficiarioOptions = beneficiarios.map((b: any) => ({
+    value: b.id_beneficiario,
+    label: b.nombre_completo
+  }));
+
+  const aparatoOptions = inventario.map((inv: any) => ({
+    value: inv.id_articulo,
+    label: inv.nombre
+  }));
+
+  const selectedApparatus = inventario.find(
+    (i) => String(i.id_articulo) === String(formData.aparato)
+  );
 
   return (
     <div className="flex h-screen bg-[#f3f4f6] font-sans relative overflow-hidden text-slate-900">
@@ -474,70 +496,93 @@ const Prestamos: React.FC<PrestamosProps> = ({ onLogout, onNavigate }) => {
 
             <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
               <div className="p-8 space-y-6">
-                <div className="space-y-2">
-                  <label className="text-sm font-bold text-slate-700 flex items-center gap-2 ml-1">
-                    <User size={16} className="text-[#5ba4c7]" />
-                    Beneficiario
-                  </label>
+                <SearchableSelect
+                  label="Beneficiario"
+                  icon={<User size={16} className="text-[#5ba4c7]" />}
+                  placeholder="Seleccionar beneficiario"
+                  options={beneficiarioOptions}
+                  value={formData.beneficiario}
+                  onChange={(val) => setFormData({ ...formData, beneficiario: val })}
+                />
 
-                  <select
-                    className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-[#5ba4c7]/5 focus:border-[#5ba4c7] transition-all cursor-pointer text-slate-600 font-medium"
-                    value={formData.beneficiario}
-                    onChange={(e) =>
-                      setFormData({ ...formData, beneficiario: e.target.value })
-                    }
-                  >
-                    <option value="">Seleccionar beneficiario</option>
-                    {beneficiarios.map((b: any) => (
-                      <option key={b.id_beneficiario} value={b.id_beneficiario}>
-                        {b.nombre_completo}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-bold text-slate-700 flex items-center gap-2 ml-1">
-                    <Package size={16} className="text-[#5ba4c7]" />
-                    Aparato a prestar
-                  </label>
-
-                  <select
-                    className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-[#5ba4c7]/5 focus:border-[#5ba4c7] transition-all cursor-pointer text-slate-600 font-medium"
-                    value={formData.aparato}
-                    onChange={(e) =>
-                      setFormData({ ...formData, aparato: e.target.value })
-                    }
-                  >
-                    <option value="">Seleccionar aparato</option>
-                    {inventario.map((inv: any) => (
-                      <option key={inv.id_articulo} value={inv.id_articulo}>
-                        {inv.nombre} ({inv.cantidad_disponible} disp.)
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-sm font-bold text-slate-700 ml-1">
-                      Cantidad
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                  <div className="space-y-2 md:col-span-1">
+                    <label className="text-sm font-bold text-slate-700 flex items-center gap-2 ml-1">
+                      <Package size={16} className="text-[#5ba4c7]" />
+                      Código
                     </label>
 
                     <input
-                      type="number"
-                      className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-[#5ba4c7]/5 focus:border-[#5ba4c7] transition-all text-slate-600 font-medium"
-                      value={formData.cantidad}
-                      min="1"
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          cantidad: parseInt(e.target.value)
-                        })
-                      }
+                      type="text"
+                      className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-[#5ba4c7]/5 focus:border-[#5ba4c7] transition-all text-slate-600 font-medium placeholder:text-slate-400"
+                      placeholder="Código..."
+                      value={codigoInput}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setCodigoInput(value);
+                        const matchingArt = inventario.find(
+                          (i) => (i.codigo_articulo || '').toLowerCase() === value.trim().toLowerCase()
+                        );
+                        if (matchingArt) {
+                          setFormData((prev) => ({ ...prev, aparato: String(matchingArt.id_articulo) }));
+                        } else {
+                          setFormData((prev) => ({ ...prev, aparato: '' }));
+                        }
+                      }}
                     />
                   </div>
 
+                  <div className="md:col-span-3">
+                    <SearchableSelect
+                      label="Aparato a prestar"
+                      icon={<Package size={16} className="text-[#5ba4c7]" />}
+                      placeholder="Seleccionar aparato"
+                      options={aparatoOptions}
+                      value={formData.aparato}
+                      onChange={(val) => {
+                        setFormData((prev) => ({ ...prev, aparato: val }));
+                        const art = inventario.find((i) => String(i.id_articulo) === String(val));
+                        if (art) {
+                          setCodigoInput(art.codigo_articulo || '');
+                        } else {
+                          setCodigoInput('');
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {selectedApparatus && (
+                  <div className="flex items-center gap-6 p-5 bg-slate-50 border border-slate-100 rounded-3xl animate-in fade-in slide-in-from-top-3 duration-200">
+                    <div className="relative group">
+                      <img
+                        src={selectedApparatus.imagen_url || DEFAULT_IMAGE}
+                        alt={selectedApparatus.nombre}
+                        onClick={() => setIsImageExpanded(true)}
+                        className="w-20 h-20 object-cover rounded-2xl border border-slate-200/60 shadow-sm cursor-zoom-in hover:brightness-95 transition-all"
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/10 opacity-0 group-hover:opacity-100 rounded-2xl transition-opacity pointer-events-none">
+                        <Search size={16} className="text-white drop-shadow" />
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-0 space-y-1">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-black bg-[#5ba4c7]/10 text-[#4a8ba9] uppercase tracking-wider">
+                        {selectedApparatus.codigo_articulo || 'Sin código'}
+                      </span>
+                      <h4 className="text-base font-bold text-slate-800 truncate">
+                        {selectedApparatus.nombre}
+                      </h4>
+                      <p className="text-xs text-slate-500 font-medium">
+                        Stock disponible:{' '}
+                        <span className="font-bold text-slate-700">
+                          {selectedApparatus.cantidad_disponible} unidades
+                        </span>
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <label className="text-sm font-bold text-slate-700 flex items-center gap-2 ml-1">
                       <Calendar size={16} className="text-[#5ba4c7]" />
@@ -556,26 +601,26 @@ const Prestamos: React.FC<PrestamosProps> = ({ onLogout, onNavigate }) => {
                       }
                     />
                   </div>
-                </div>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-bold text-slate-700 flex items-center gap-2 ml-1">
-                    <Calendar size={16} className="text-[#5ba4c7]" />
-                    Fecha estimada de devolución
-                  </label>
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-slate-700 flex items-center gap-2 ml-1">
+                      <Calendar size={16} className="text-[#5ba4c7]" />
+                      Fecha estimada de devolución
+                    </label>
 
-                  <input
-                    type="date"
-                    className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-[#5ba4c7]/5 focus:border-[#5ba4c7] transition-all text-slate-600 font-medium placeholder:text-slate-300"
-                    min={new Date().toISOString().split('T')[0]}
-                    value={formData.fechaDevolucion}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        fechaDevolucion: e.target.value
-                      })
-                    }
-                  />
+                    <input
+                      type="date"
+                      className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-[#5ba4c7]/5 focus:border-[#5ba4c7] transition-all text-slate-600 font-medium placeholder:text-slate-300"
+                      min={new Date().toISOString().split('T')[0]}
+                      value={formData.fechaDevolucion}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          fechaDevolucion: e.target.value
+                        })
+                      }
+                    />
+                  </div>
                 </div>
 
                 <div className="space-y-2">
@@ -789,6 +834,45 @@ const Prestamos: React.FC<PrestamosProps> = ({ onLogout, onNavigate }) => {
           </div>
         </div>
       )}
+
+      {isImageExpanded && selectedApparatus && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 sm:p-6 md:p-8">
+          <div
+            className="absolute inset-0 bg-slate-900/70 backdrop-blur-md cursor-zoom-out animate-in fade-in duration-200"
+            onClick={() => setIsImageExpanded(false)}
+          ></div>
+          <div className="relative bg-white w-full max-w-[95vw] md:max-w-4xl lg:max-w-5xl rounded-[32px] shadow-2xl overflow-hidden animate-in zoom-in duration-200 flex flex-col max-h-[90vh] p-6 md:p-8">
+            <button
+              onClick={() => setIsImageExpanded(false)}
+              className="absolute top-4 right-4 md:top-6 md:right-6 p-2 hover:bg-slate-100 rounded-xl transition-colors text-slate-400 hover:text-slate-600 z-10"
+            >
+              <X size={24} />
+            </button>
+            
+            <div className="flex-1 min-h-0 w-full flex items-center justify-center mb-6 mt-4">
+              <img
+                src={selectedApparatus.imagen_url || DEFAULT_IMAGE}
+                alt={selectedApparatus.nombre}
+                className="max-w-full max-h-[58vh] md:max-h-[65vh] object-contain rounded-2xl border border-slate-100 shadow-sm"
+              />
+            </div>
+            
+            <div className="text-center space-y-2 shrink-0">
+              <h4 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight leading-tight">
+                {selectedApparatus.nombre}
+              </h4>
+              <div className="flex items-center justify-center gap-2">
+                <span className="px-3 py-1 rounded-full text-xs font-black bg-[#5ba4c7]/10 text-[#4a8ba9] uppercase tracking-wider">
+                  {selectedApparatus.codigo_articulo || 'Sin código'}
+                </span>
+                <span className="px-3 py-1 rounded-full text-xs font-black bg-emerald-100 text-emerald-800 uppercase tracking-wider">
+                  {selectedApparatus.cantidad_disponible} disp.
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -816,5 +900,135 @@ const StatMiniCard = ({ icon, iconColor, title, value, subtitle, bgColor }: any)
     </div>
   </div>
 );
+
+interface SearchableSelectProps {
+  label: string;
+  icon?: React.ReactNode;
+  placeholder: string;
+  options: { value: string | number; label: string }[];
+  value: string | number;
+  onChange: (value: string) => void;
+}
+
+const SearchableSelect: React.FC<SearchableSelectProps> = ({
+  label,
+  icon,
+  placeholder,
+  options,
+  value,
+  onChange
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const searchInputRef = React.useRef<HTMLInputElement>(null);
+
+  const selectedOption = options.find((opt) => String(opt.value) === String(value));
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (isOpen) {
+      const timer = setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 50);
+      return () => clearTimeout(timer);
+    } else {
+      setSearch('');
+    }
+  }, [isOpen]);
+
+  const filteredOptions = options.filter((opt) =>
+    opt.label.toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <div className="space-y-2 relative" ref={containerRef}>
+      <label className="text-sm font-bold text-slate-700 flex items-center gap-2 ml-1">
+        {icon}
+        {label}
+      </label>
+
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-between text-left text-slate-600 font-medium hover:bg-slate-100/50 hover:border-slate-200 transition-all cursor-pointer focus:outline-none focus:ring-4 focus:ring-[#5ba4c7]/5"
+      >
+        <span className={selectedOption ? 'text-slate-800' : 'text-slate-400'}>
+          {selectedOption ? selectedOption.label : placeholder}
+        </span>
+        <ChevronDown
+          size={18}
+          className={`text-slate-400 transition-transform duration-200 ${
+            isOpen ? 'rotate-180' : ''
+          }`}
+        />
+      </button>
+
+      {isOpen && (
+        <div className="absolute z-[120] left-0 right-0 mt-2 bg-white border border-slate-100 rounded-[24px] shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150 flex flex-col">
+          <div className="p-3 border-b border-slate-100 flex items-center gap-2 bg-slate-50/50">
+            <Search size={16} className="text-slate-400" />
+            <input
+              ref={searchInputRef}
+              type="text"
+              className="w-full bg-transparent text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none"
+              placeholder="Buscar..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch('')}
+                className="p-1 hover:bg-slate-200 rounded-full text-slate-400 transition-colors"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+
+          <div className="max-h-52 overflow-y-auto p-2 space-y-1">
+            {filteredOptions.length > 0 ? (
+              filteredOptions.map((opt) => {
+                const isSelected = String(opt.value) === String(value);
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => {
+                      onChange(String(opt.value));
+                      setIsOpen(false);
+                    }}
+                    className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-left text-sm transition-all font-medium ${
+                      isSelected
+                        ? 'bg-[#5ba4c7]/10 text-[#4a8ba9]'
+                        : 'text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span>{opt.label}</span>
+                    {isSelected && <Check size={16} className="text-[#4a8ba9]" />}
+                  </button>
+                );
+              })
+            ) : (
+              <div className="p-6 text-center text-slate-400 text-sm font-medium">
+                No se encontraron resultados
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 export default Prestamos;

@@ -30,7 +30,14 @@ const Usuarios: React.FC<UsuariosProps> = ({ onLogout, onNavigate }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const [usuariosData, setUsuariosData] = useState<Usuario[]>([]);
+  const [usuariosData, setUsuariosData] = useState<Usuario[]>(() => {
+    try {
+      const cached = localStorage.getItem('cache_usuarios');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
   const [nombre, setNombre] = useState('');
   const [correo, setCorreo] = useState('');
   const [password, setPassword] = useState('');
@@ -76,6 +83,7 @@ const Usuarios: React.FC<UsuariosProps> = ({ onLogout, onNavigate }) => {
       if (res.ok) {
         const data = await res.json();
         setUsuariosData(data);
+        localStorage.setItem('cache_usuarios', JSON.stringify(data));
       }
     } catch (error) {
       console.error('Error fetching users:', error);
@@ -580,27 +588,7 @@ const Usuarios: React.FC<UsuariosProps> = ({ onLogout, onNavigate }) => {
   );
 };
 
-const NavItem = ({
-  icon,
-  label,
-  active = false,
-  onClick,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  active?: boolean;
-  onClick: () => void;
-}) => (
-  <button 
-    onClick={onClick} 
-    className={`w-full flex items-center gap-4 px-4 py-3 rounded-2xl transition-all font-black text-sm text-left ${active ? 'bg-white/20 text-white' : 'text-white/60 hover:text-white hover:bg-white/10'}`}
-  >
-    <div className={`${active ? 'opacity-100' : 'opacity-60'}`}>
-      {icon}
-    </div>
-    <span className="tracking-wide">{label}</span>
-  </button>
-);
+
 
 const RolePermission = ({ 
   text, 

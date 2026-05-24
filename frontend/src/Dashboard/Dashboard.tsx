@@ -22,18 +22,65 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = ({ onLogout, onNavigate }) => {
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
-  const [resumen, setResumen] = useState({
-    total_aparatos: 0,
-    total_prestados: 0,
-    en_mantenimiento: 0,
-    devoluciones_atrasadas: 0
+  const [resumen, setResumen] = useState(() => {
+    try {
+      const cached = localStorage.getItem('cache_dashboard_resumen');
+      return cached ? JSON.parse(cached) : {
+        total_aparatos: 0,
+        total_prestados: 0,
+        en_mantenimiento: 0,
+        devoluciones_atrasadas: 0
+      };
+    } catch {
+      return {
+        total_aparatos: 0,
+        total_prestados: 0,
+        en_mantenimiento: 0,
+        devoluciones_atrasadas: 0
+      };
+    }
   });
-  const [actividades, setActividades] = useState<any[]>([]);
-  const [stockCritico, setStockCritico] = useState<any[]>([]);
-  const [morosidad, setMorosidad] = useState<any[]>([]);
+  const [actividades, setActividades] = useState<any[]>(() => {
+    try {
+      const cached = localStorage.getItem('cache_dashboard_actividades');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [stockCritico, setStockCritico] = useState<any[]>(() => {
+    try {
+      const cached = localStorage.getItem('cache_dashboard_stockCritico');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [morosidad, setMorosidad] = useState<any[]>(() => {
+    try {
+      const cached = localStorage.getItem('cache_dashboard_morosidad');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
   const [userName, setUserName] = useState('');
-  const [actividadMensual, setActividadMensual] = useState<any[]>([]);
-  const [inventarioCategoria, setInventarioCategoria] = useState<any[]>([]);
+  const [actividadMensual, setActividadMensual] = useState<any[]>(() => {
+    try {
+      const cached = localStorage.getItem('cache_dashboard_actividadMensual');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [inventarioCategoria, setInventarioCategoria] = useState<any[]>(() => {
+    try {
+      const cached = localStorage.getItem('cache_dashboard_inventarioCategoria');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
 
   useEffect(() => {
     // Cargar datos de usuario del localStorage
@@ -49,22 +96,34 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, onNavigate }) => {
     }
     fetch('http://localhost:3000/reportes/resumen')
       .then(res => res.json())
-      .then(data => setResumen(data))
+      .then(data => {
+        setResumen(data);
+        localStorage.setItem('cache_dashboard_resumen', JSON.stringify(data));
+      })
       .catch(err => console.error("Error fetching resumen:", err));
 
     fetch('http://localhost:3000/dashboard/actividad')
       .then(res => res.json())
-      .then(data => setActividades(data))
+      .then(data => {
+        setActividades(data);
+        localStorage.setItem('cache_dashboard_actividades', JSON.stringify(data));
+      })
       .catch(err => console.error("Error fetching actividad:", err));
 
     fetch('http://localhost:3000/dashboard/stock-critico')
       .then(res => res.json())
-      .then(data => setStockCritico(data))
+      .then(data => {
+        setStockCritico(data);
+        localStorage.setItem('cache_dashboard_stockCritico', JSON.stringify(data));
+      })
       .catch(err => console.error("Error fetching stock critico:", err));
 
     fetch('http://localhost:3000/reportes/morosidad')
       .then(res => res.json())
-      .then(data => setMorosidad(data))
+      .then(data => {
+        setMorosidad(data);
+        localStorage.setItem('cache_dashboard_morosidad', JSON.stringify(data));
+      })
       .catch(err => console.error("Error fetching morosidad:", err));
 
     fetch('http://localhost:3000/reportes/prestamos-mes')
@@ -79,12 +138,16 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout, onNavigate }) => {
           };
         });
         setActividadMensual(formattedData);
+        localStorage.setItem('cache_dashboard_actividadMensual', JSON.stringify(formattedData));
       })
       .catch(err => console.error("Error fetching actividad mensual:", err));
 
     fetch('http://localhost:3000/dashboard/inventario-categoria')
       .then(res => res.json())
-      .then(data => setInventarioCategoria(data))
+      .then(data => {
+        setInventarioCategoria(data);
+        localStorage.setItem('cache_dashboard_inventarioCategoria', JSON.stringify(data));
+      })
       .catch(err => console.error("Error fetching inventario categoria:", err));
   }, []);
 

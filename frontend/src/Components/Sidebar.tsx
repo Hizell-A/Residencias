@@ -36,7 +36,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onLogout, onNavigate }) =
   const menuItems = [
     {
       view: 'dashboard',
-      label: 'Dashboard',
+      label: 'Inicio',
       icon: <LayoutDashboard size={19} />
     },
     {
@@ -84,11 +84,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onLogout, onNavigate }) =
             />
           </div>
 
-          <div className="mt-4 mx-auto w-fit px-4 py-1.5 rounded-full bg-white/15 border border-white/20 backdrop-blur-md">
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/90">
-              Panel Administrativo
-            </p>
-          </div>
+
         </div>
 
         {/* Menú */}

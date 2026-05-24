@@ -63,6 +63,13 @@ CREATE TABLE devoluciones (
     id_imagen_prueba_dano INTEGER REFERENCES galeria_imagenes(id) ON DELETE SET NULL
 );
 
+-- 6. Tabla categorias
+CREATE TABLE categorias (
+    id_categoria SERIAL PRIMARY KEY,
+    categoria VARCHAR(100) NOT NULL,
+    abreviacion VARCHAR(15) NOT NULL
+);
+
 -- Índices para optimizar búsquedas
 CREATE INDEX idx_prestamos_estado ON prestamos(estado_prestamo);
 CREATE INDEX idx_inventario_disponible ON inventario(cantidad_disponible);

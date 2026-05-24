@@ -386,9 +386,19 @@ const porcentajePrestado =
 
       {/* Plantilla profesional para PDF */}
 <div className="fixed -left-[9999px] top-0 bg-white">
+  <style>{`
+    @media print {
+      body {
+        background-color: #ffffff !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+    }
+  `}</style>
   <div
     ref={printRef}
     className="w-[794px] min-h-[1123px] bg-white text-slate-900 font-sans p-10"
+    style={{ backgroundColor: '#ffffff' }}
   >
     {/* Encabezado */}
     <div className="flex items-start justify-between border-b-4 border-[#5ba4c7] pb-6 mb-8">
@@ -633,7 +643,7 @@ const porcentajePrestado =
     </section>
 
     {/* Top aparatos */}
-    <section className="mb-8">
+    <section className="mb-8" style={{ pageBreakBefore: 'always', breakBefore: 'page', paddingTop: '48px' }}>
       <h2 className="text-lg font-black text-slate-900 mb-4">
         Top 5 aparatos más solicitados
       </h2>

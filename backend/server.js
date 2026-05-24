@@ -197,8 +197,29 @@ app.get('/usuarios/:id/actividad', async (req, res) => {
 // OBTENER TODOS LOS ARTÍCULOS (GET /inventario)
 app.get('/inventario', async (req, res) => {
     try {
-        const resultado = await db.query('SELECT * FROM inventario ORDER BY id_articulo ASC');
-        res.json(resultado.rows);
+        const queryText = `
+            SELECT 
+                i.*,
+                g.imagen_binaria
+            FROM inventario i
+            LEFT JOIN galeria_imagenes g ON i.id_imagen_previsualizacion = g.id
+            ORDER BY i.id_articulo ASC
+        `;
+        const resultado = await db.query(queryText);
+        const rows = resultado.rows.map(row => ({
+            id_articulo: row.id_articulo,
+            codigo_articulo: row.codigo_articulo,
+            nombre: row.nombre,
+            descripcion: row.descripcion,
+            categoria: row.categoria,
+            cantidad_total: row.cantidad_total,
+            cantidad_disponible: row.cantidad_disponible,
+            estado_fisico: row.estado_fisico,
+            fecha_ingreso: row.fecha_ingreso,
+            id_imagen_previsualizacion: row.id_imagen_previsualizacion,
+            imagen_url: row.imagen_binaria ? row.imagen_binaria.toString('utf-8') : null
+        }));
+        res.json(rows);
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Error al obtener el inventario' });
@@ -207,16 +228,76 @@ app.get('/inventario', async (req, res) => {
 
 // AGREGAR NUEVO ARTÍCULO (POST /inventario)
 app.post('/inventario', async (req, res) => {
-    const { codigo_articulo, nombre, descripcion, categoria, cantidad_total, cantidad_disponible, estado_fisico } = req.body;
+    const { nombre, descripcion, categoria, cantidad_total, cantidad_disponible, estado_fisico, imagen_url } = req.body;
     try {
+        // 1. Obtener la abreviación de la categoría
+        const catRes = await db.query('SELECT abreviacion FROM categorias WHERE categoria = $1', [categoria]);
+        let abbr = 'ART'; // fallback
+        if (catRes.rows.length > 0) {
+            abbr = catRes.rows[0].abreviacion;
+        } else {
+            // Si la categoría no existe en la base de datos (por ejemplo, si es una por defecto inicial)
+            // podemos extraer la primera letra de cada palabra o las dos primeras letras como abreviatura rápida
+            const cleanCat = (categoria || '').trim().toUpperCase();
+            if (cleanCat.length > 0) {
+                const words = cleanCat.split(' ');
+                if (words.length >= 2) {
+                    abbr = words[0][0] + words[1][0];
+                } else {
+                    abbr = cleanCat.slice(0, 2);
+                }
+            }
+        }
+
+        // 2. Buscar todos los códigos de artículos que empiecen con "ABBR-"
+        const existingCodesRes = await db.query(
+            "SELECT codigo_articulo FROM inventario WHERE codigo_articulo LIKE $1",
+            [`${abbr}-%`]
+        );
+        
+        let maxNum = 0;
+        for (const row of existingCodesRes.rows) {
+            const parts = row.codigo_articulo.split('-');
+            const numPart = parts[parts.length - 1];
+            const num = parseInt(numPart, 10);
+            if (!isNaN(num) && num > maxNum) {
+                maxNum = num;
+            }
+        }
+
+        // 3. Generar el código secuencial (maxNum + 1)
+        const nextNum = maxNum + 1;
+        const codigo_articulo = `${abbr}-${String(nextNum).padStart(3, '0')}`;
+
+        // 4. Guardar la imagen en galeria_imagenes si existe
+        let id_imagen_previsualizacion = null;
+        if (imagen_url && imagen_url.trim() !== '') {
+            const buffer = Buffer.from(imagen_url, 'utf-8');
+            let mimeType = 'image/png';
+            const match = imagen_url.match(/^data:([^;]+);base64,/);
+            if (match) {
+                mimeType = match[1];
+            }
+            const resGaleria = await db.query(
+                `INSERT INTO galeria_imagenes (nombre_archivo, tipo_mime, imagen_binaria)
+                 VALUES ($1, $2, $3) RETURNING id`,
+                [`preview_${codigo_articulo.toLowerCase()}.png`, mimeType, buffer]
+            );
+            id_imagen_previsualizacion = resGaleria.rows[0].id;
+        }
+
         const resultado = await db.query(
             `INSERT INTO inventario 
-             (codigo_articulo, nombre, descripcion, categoria, cantidad_total, cantidad_disponible, estado_fisico) 
-             VALUES ($1, $2, $3, $4, $5, $6, $7) 
+             (codigo_articulo, nombre, descripcion, categoria, cantidad_total, cantidad_disponible, estado_fisico, id_imagen_previsualizacion) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
              RETURNING *`,
-            [codigo_articulo, nombre, descripcion, categoria, cantidad_total, cantidad_disponible, estado_fisico || 'Bueno']
+            [codigo_articulo, nombre, descripcion, categoria, cantidad_total, cantidad_disponible, estado_fisico || 'Bueno', id_imagen_previsualizacion]
         );
-        res.status(201).json({ mensaje: 'Artículo agregado exitosamente', articulo: resultado.rows[0] });
+        
+        const articulo = resultado.rows[0];
+        articulo.imagen_url = imagen_url;
+
+        res.status(201).json({ mensaje: 'Artículo agregado exitosamente', articulo });
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Error al agregar el artículo' });
@@ -226,8 +307,54 @@ app.post('/inventario', async (req, res) => {
 // ACTUALIZAR ARTÍCULO (PUT /inventario/:id)
 app.put('/inventario/:id', async (req, res) => {
     const { id } = req.params;
-    const { codigo_articulo, nombre, descripcion, categoria, cantidad_total, cantidad_disponible, estado_fisico } = req.body;
+    const { codigo_articulo, nombre, descripcion, categoria, cantidad_total, cantidad_disponible, estado_fisico, imagen_url } = req.body;
     try {
+        // 1. Obtener los datos actuales del artículo (para verificar la imagen vieja)
+        const artActualRes = await db.query(
+            'SELECT id_imagen_previsualizacion, codigo_articulo FROM inventario WHERE id_articulo = $1',
+            [id]
+        );
+        if (artActualRes.rows.length === 0) {
+            return res.status(404).json({ error: 'Artículo no encontrado' });
+        }
+        
+        const oldImageId = artActualRes.rows[0].id_imagen_previsualizacion;
+        const currentCode = artActualRes.rows[0].codigo_articulo;
+        let id_imagen_previsualizacion = oldImageId;
+
+        // 2. Si se envió la propiedad imagen_url, evaluar cambios
+        if (req.body.hasOwnProperty('imagen_url')) {
+            let oldImageUrl = null;
+            if (oldImageId) {
+                const oldImgRes = await db.query('SELECT imagen_binaria FROM galeria_imagenes WHERE id = $1', [oldImageId]);
+                if (oldImgRes.rows.length > 0) {
+                    oldImageUrl = oldImgRes.rows[0].imagen_binaria.toString('utf-8');
+                }
+            }
+
+            if (imagen_url !== oldImageUrl) {
+                if (imagen_url && imagen_url.trim() !== '') {
+                    // Es una imagen nueva -> Insertar
+                    const buffer = Buffer.from(imagen_url, 'utf-8');
+                    let mimeType = 'image/png';
+                    const match = imagen_url.match(/^data:([^;]+);base64,/);
+                    if (match) {
+                        mimeType = match[1];
+                    }
+                    const resGaleria = await db.query(
+                        `INSERT INTO galeria_imagenes (nombre_archivo, tipo_mime, imagen_binaria)
+                         VALUES ($1, $2, $3) RETURNING id`,
+                        [`preview_${(codigo_articulo || currentCode).toLowerCase()}.png`, mimeType, buffer]
+                    );
+                    id_imagen_previsualizacion = resGaleria.rows[0].id;
+                } else {
+                    // La imagen fue removida
+                    id_imagen_previsualizacion = null;
+                }
+            }
+        }
+
+        // 3. Ejecutar actualización del artículo
         const resultado = await db.query(
             `UPDATE inventario 
              SET codigo_articulo = COALESCE($1, codigo_articulo),
@@ -236,16 +363,32 @@ app.put('/inventario/:id', async (req, res) => {
                  categoria = COALESCE($4, categoria),
                  cantidad_total = COALESCE($5, cantidad_total),
                  cantidad_disponible = COALESCE($6, cantidad_disponible),
-                 estado_fisico = COALESCE($7, estado_fisico)
-             WHERE id_articulo = $8 
+                 estado_fisico = COALESCE($7, estado_fisico),
+                 id_imagen_previsualizacion = $8
+             WHERE id_articulo = $9 
              RETURNING *`,
-            [codigo_articulo, nombre, descripcion, categoria, cantidad_total, cantidad_disponible, estado_fisico, id]
+            [codigo_articulo, nombre, descripcion, categoria, cantidad_total, cantidad_disponible, estado_fisico, id_imagen_previsualizacion, id]
         );
 
-        if (resultado.rows.length === 0) {
-            return res.status(404).json({ error: 'Artículo no encontrado' });
+        const articuloActualizado = resultado.rows[0];
+        
+        // 4. Si la imagen cambió y había una imagen previa, eliminarla de la galería
+        if (req.body.hasOwnProperty('imagen_url')) {
+            let oldImageUrl = null;
+            if (oldImageId) {
+                const oldImgRes = await db.query('SELECT imagen_binaria FROM galeria_imagenes WHERE id = $1', [oldImageId]);
+                if (oldImgRes.rows.length > 0) {
+                    oldImageUrl = oldImgRes.rows[0].imagen_binaria.toString('utf-8');
+                }
+            }
+            if (imagen_url !== oldImageUrl && oldImageId) {
+                await db.query('DELETE FROM galeria_imagenes WHERE id = $1', [oldImageId]);
+            }
         }
-        res.json({ mensaje: 'Artículo actualizado exitosamente', articulo: resultado.rows[0] });
+
+        articuloActualizado.imagen_url = imagen_url;
+
+        res.json({ mensaje: 'Artículo actualizado exitosamente', articulo: articuloActualizado });
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Error al actualizar el artículo' });
@@ -900,6 +1043,96 @@ app.get('/reportes/morosidad', async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Error al obtener el reporte de morosidad' });
+    }
+});
+
+// OBTENER TODAS LAS CATEGORÍAS (GET /categorias)
+app.get('/categorias', async (req, res) => {
+    try {
+        let resultado = await db.query('SELECT * FROM categorias ORDER BY categoria ASC');
+        if (resultado.rows.length === 0) {
+            // Auto-seed default categories
+            const defaultCategories = [
+                ['Silla de ruedas', 'SR'],
+                ['Muletas', 'MU'],
+                ['Andadera', 'AN'],
+                ['Bastón', 'BA']
+            ];
+            for (const [name, abbr] of defaultCategories) {
+                await db.query('INSERT INTO categorias (categoria, abreviacion) VALUES ($1, $2)', [name, abbr]);
+            }
+            resultado = await db.query('SELECT * FROM categorias ORDER BY categoria ASC');
+        }
+        res.json(resultado.rows);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Error al obtener las categorías' });
+    }
+});
+
+// AGREGAR NUEVA CATEGORÍA (POST /categorias)
+app.post('/categorias', async (req, res) => {
+    const { categoria, abreviacion } = req.body;
+    
+    // Validaciones
+    if (!categoria || categoria.trim() === '') {
+        return res.status(400).json({ error: 'El nombre de la categoría es requerido.' });
+    }
+    if (categoria.length > 100) {
+        return res.status(400).json({ error: 'El nombre de la categoría no puede exceder los 100 caracteres.' });
+    }
+    if (!abreviacion || abreviacion.trim() === '') {
+        return res.status(400).json({ error: 'La abreviación es requerida.' });
+    }
+    if (abreviacion.length > 5) {
+        return res.status(400).json({ error: 'La abreviación no puede exceder los 5 caracteres.' });
+    }
+
+    try {
+        // Verificar duplicados
+        const duplicado = await db.query('SELECT * FROM categorias WHERE LOWER(categoria) = LOWER($1)', [categoria.trim()]);
+        if (duplicado.rows.length > 0) {
+            return res.status(400).json({ error: 'Esta categoría ya existe.' });
+        }
+
+        const resultado = await db.query(
+            'INSERT INTO categorias (categoria, abreviacion) VALUES ($1, $2) RETURNING *',
+            [categoria.trim(), abreviacion.trim().toUpperCase()]
+        );
+        res.status(201).json({ mensaje: 'Categoría agregada exitosamente', categoria: resultado.rows[0] });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Error al registrar la categoría' });
+    }
+});
+
+// ELIMINAR CATEGORÍA (DELETE /categorias/:id)
+app.delete('/categorias/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        // 1. Obtener el nombre de la categoría
+        const catRes = await db.query('SELECT categoria FROM categorias WHERE id_categoria = $1', [id]);
+        if (catRes.rows.length === 0) {
+            return res.status(404).json({ error: 'Categoría no encontrada' });
+        }
+        const nombreCategoria = catRes.rows[0].categoria;
+
+        // 2. Verificar si tiene artículos asociados en el inventario
+        const inventarioRes = await db.query('SELECT COUNT(*) AS total FROM inventario WHERE categoria = $1', [nombreCategoria]);
+        const totalAsociados = parseInt(inventarioRes.rows[0].total, 10);
+        
+        if (totalAsociados > 0) {
+            return res.status(400).json({ 
+                error: `No se puede eliminar la categoría "${nombreCategoria}" porque tiene ${totalAsociados} artículo(s) asignado(s) en el inventario.` 
+            });
+        }
+
+        // 3. Eliminar de la base de datos
+        await db.query('DELETE FROM categorias WHERE id_categoria = $1', [id]);
+        res.json({ mensaje: `La categoría "${nombreCategoria}" ha sido eliminada exitosamente.` });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Error al eliminar la categoría' });
     }
 });
 
