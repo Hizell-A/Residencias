@@ -87,6 +87,17 @@ app.get('/auth/status', verificarAccesoOrtopedia, (req, res) => {
     res.json({ authenticated: true, usuario: req.usuario });
 });
 
+// ENDPOINT DE LOGOUT (Borrar Cookie HTTP-Only)
+app.post('/auth/logout', (req, res) => {
+    res.clearCookie('auth_token', {
+        httpOnly: true,
+        secure: false, // Cambiar a true en producción si se utiliza HTTPS
+        sameSite: 'lax',
+        path: '/'
+    });
+    res.json({ mensaje: 'Sesión cerrada exitosamente' });
+});
+
 // APLICAR PROTECCIÓN A TODOS LOS ENDPOINTS DE LA APLICACIÓN
 app.use('/usuarios', verificarAccesoOrtopedia);
 app.use('/inventario', verificarAccesoOrtopedia);

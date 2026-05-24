@@ -66,7 +66,16 @@ function App() {
     }
   }, [usuario]);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await fetch('http://localhost:3000/auth/logout', {
+        method: 'POST',
+        credentials: 'include'
+      });
+    } catch (error) {
+      console.error('Error al cerrar sesión en el servidor:', error);
+    }
+
     setIsAuthenticated(false);
     setUsuario(null);
     localStorage.removeItem('usuario');
@@ -77,7 +86,7 @@ function App() {
     ) {
       window.location.href = EXTERNAL_LOGIN_URL;
     } else {
-      setSessionError('Has cerrado sesión correctamente. Configura la URL de redirección absoluta del SSO para habilitar la redirección automática.');
+      setSessionError('Has cerrado sesión correctamente y la cookie ha sido eliminada. Configura la URL de redirección absoluta del SSO para habilitar la redirección automática.');
     }
   };
 
