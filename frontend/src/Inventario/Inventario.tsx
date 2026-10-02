@@ -34,6 +34,7 @@ export interface Articulo {
 }
 
 
+//hola//
 
 const DEFAULT_IMAGE = '/src/assets/logo.png';
 const Inventario: React.FC<InventarioProps> = ({ onLogout, onNavigate }) => {
