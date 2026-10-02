@@ -797,6 +797,7 @@ app.get('/devoluciones', async (req, res) => {
             JOIN beneficiarios b ON p.id_beneficiario = b.id_beneficiario
             ORDER BY d.fecha_devolucion DESC
         `;
+        
         const resultado = await db.query(query);
         res.json(resultado.rows);
     } catch (error) {

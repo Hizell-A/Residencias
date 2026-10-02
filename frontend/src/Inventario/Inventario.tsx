@@ -391,8 +391,9 @@ const handleRemoveImage = () => {
               <option>Destruido</option>
             </select>
           </div>
+          
 
-          {/* Inventory Table Container with Scroll */}
+          {/* Inventory Table Container with Scrollll */}
           <div className="bg-white rounded-[40px] border border-slate-100 shadow-sm overflow-hidden flex flex-col">
             <div className="overflow-y-auto max-h-[550px] scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent hover:scrollbar-thumb-slate-300 transition-all">
               <table className="w-full text-left border-collapse">
